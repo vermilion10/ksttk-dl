@@ -1,8 +1,9 @@
 using System.Net;
+using KsttkDl.Core.Tunnel;
 
 namespace KsttkDl.Core.Download;
 
-/// <summary> one pooled <see cref="HttpClient"/> for the process. the cdn is plain https and japan-only; without <see cref="UseProxy"/> the machine's own network path (or the HTTP_PROXY / HTTPS_PROXY / ALL_PROXY environment variables) has to get it there </summary>
+/// <summary> one pooled <see cref="HttpClient"/> for the process. the cdn is plain https and japan-only; without <see cref="UseProxy"/> or <see cref="UseTunnel"/> the machine's own network path (or the HTTP_PROXY / HTTPS_PROXY / ALL_PROXY environment variables) has to get it there </summary>
 public static class CdnHttpClient
 {
     private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(15);
@@ -13,6 +14,7 @@ public static class CdnHttpClient
     private static readonly Lazy<HttpClient> LazyClient = new(Create);
 
     private static IWebProxy? _proxy;
+    private static JpTunnel? _tunnel;
 
     public static HttpClient Instance => LazyClient.Value;
 
@@ -25,6 +27,17 @@ public static class CdnHttpClient
         }
 
         _proxy = ParseProxy(proxyUrl);
+    }
+
+    /// <summary> opens every connection through <paramref name="tunnel"/>, so all traffic leaves from its Japanese relay. like <see cref="UseProxy"/>, it must run before the first request </summary>
+    public static void UseTunnel(JpTunnel tunnel)
+    {
+        if (LazyClient.IsValueCreated)
+        {
+            throw new InvalidOperationException("The tunnel must be set before the first request.");
+        }
+
+        _tunnel = tunnel;
     }
 
     public static IWebProxy ParseProxy(string proxyUrl)
@@ -75,7 +88,15 @@ public static class CdnHttpClient
             AutomaticDecompression = DecompressionMethods.All,
         };
 
-        if (_proxy is not null)
+        if (_tunnel is { } tunnel)
+        {
+            socketHandler.UseProxy = false;
+
+            // the first connection also brings the tunnel up (relay list, handshakes), which the tunnel bounds itself
+            socketHandler.ConnectTimeout = TimeSpan.FromMinutes(5);
+            socketHandler.ConnectCallback = (context, token) => new ValueTask<Stream>(tunnel.ConnectAsync(context.DnsEndPoint, token));
+        }
+        else if (_proxy is not null)
         {
             socketHandler.Proxy = _proxy;
             socketHandler.UseProxy = true;

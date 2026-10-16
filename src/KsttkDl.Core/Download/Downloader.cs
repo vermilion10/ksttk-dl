@@ -134,55 +134,71 @@ public sealed class Downloader(DownloadOptions options, DownloadIndex index, Act
             return new FetchResult(FetchOutcome.Downloaded, 0);
         }
 
-        try
+        // RetryHandler only sees failures up to the response headers; a connection lost mid-body (a relay dropping, say) is retried here
+        for (var attempt = 1; ; attempt++)
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, entry.Url(options.Host));
-            using var response = await CdnHttpClient.Instance.SendAsync(
-                request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-
-            if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden)
+            try
             {
-                index.Record(entry.Path, new IndexRecord { Version = entry.VersionQuery, Missing = true });
-                return new FetchResult(FetchOutcome.Missing, 0);
+                return await TransferAsync(entry, destination, cancellationToken);
             }
-
-            if (!response.IsSuccessStatusCode)
+            catch (Exception ex) when (ex is HttpRequestException or IOException or TaskCanceledException
+                                       && !cancellationToken.IsCancellationRequested && attempt < BodyAttempts)
             {
-                log($"  {(int)response.StatusCode} {entry.Path}");
+                await Task.Delay(TimeSpan.FromSeconds(attempt), cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or IOException or TaskCanceledException)
+            {
+                log($"  error {entry.Path}: {ex.Message}");
                 return new FetchResult(FetchOutcome.Failed, 0);
             }
-
-            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-
-            // stream to a temp file rather than buffering: CGs and BGM tracks run to several mb each, and a run can be tens of thousands of them
-            var temporary = destination + ".part";
-            long size;
-            await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
-            await using (var target = File.Create(temporary))
-            {
-                await source.CopyToAsync(target, cancellationToken);
-                size = target.Length;
-            }
-
-            File.Move(temporary, destination, overwrite: true);
-
-            index.Record(entry.Path, new IndexRecord
-            {
-                Version = entry.VersionQuery,
-                Size = size,
-                Tag = response.Headers.ETag?.Tag ?? response.Content.Headers.LastModified?.ToString("R"),
-            });
-
-            return new FetchResult(FetchOutcome.Downloaded, size);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+    }
+
+    private const int BodyAttempts = 3;
+
+    private async Task<FetchResult> TransferAsync(AssetEntry entry, string destination, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, entry.Url(options.Host));
+        using var response = await CdnHttpClient.Instance.SendAsync(
+            request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+
+        if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden)
         {
-            throw;
+            index.Record(entry.Path, new IndexRecord { Version = entry.VersionQuery, Missing = true });
+            return new FetchResult(FetchOutcome.Missing, 0);
         }
-        catch (Exception ex) when (ex is HttpRequestException or IOException or TaskCanceledException)
+
+        if (!response.IsSuccessStatusCode)
         {
-            log($"  error {entry.Path}: {ex.Message}");
+            log($"  {(int)response.StatusCode} {entry.Path}");
             return new FetchResult(FetchOutcome.Failed, 0);
         }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+
+        // stream to a temp file rather than buffering: CGs and BGM tracks run to several mb each, and a run can be tens of thousands of them
+        var temporary = destination + ".part";
+        long size;
+        await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
+        await using (var target = File.Create(temporary))
+        {
+            await source.CopyToAsync(target, cancellationToken);
+            size = target.Length;
+        }
+
+        File.Move(temporary, destination, overwrite: true);
+
+        index.Record(entry.Path, new IndexRecord
+        {
+            Version = entry.VersionQuery,
+            Size = size,
+            Tag = response.Headers.ETag?.Tag ?? response.Content.Headers.LastModified?.ToString("R"),
+        });
+
+        return new FetchResult(FetchOutcome.Downloaded, size);
     }
 }

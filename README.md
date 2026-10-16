@@ -24,8 +24,9 @@ kc3-translations' `tools/convert-quotes.py`.
 ## Requirements
 
 - .NET 8 SDK
-- A network path into Japan. The CDN only serves Japanese IP addresses, so
-  either run ksttk-dl from a Japanese connection or pass `--proxy`
+- A network path into Japan. The CDN only serves Japanese IP addresses. Use
+  `--jp` for the built-in Japanese relay, `--proxy` for your own proxy, or run
+  ksttk-dl from a Japanese connection
 
 ## Usage
 
@@ -42,6 +43,35 @@ Run `refresh-data` before the first download and after game updates. All other
 commands read from `data/`.
 
 Both `download` and `extract` accept `--data <dir>` and `--output <dir>`.
+
+### Built-in Japanese relay
+
+Pass `--jp` to any command to connect through a Japanese
+[VPN Gate](https://www.vpngate.net/) relay. No VPN client, system-wide VPN,
+administrator rights or proxy is needed: ksttk-dl speaks OpenVPN to the relay
+itself and only its own requests go through it.
+
+```sh
+ksttk-dl relay                         # connect and show the address the CDN sees
+ksttk-dl download --world 17 --jp
+ksttk-dl download --world 17 --jp --switch-relay
+```
+
+- ksttk-dl remembers the relay that worked (in `data/relay.json`) and tries it
+  first next time, so the CDN keeps seeing the same address.
+- `--switch-relay` skips the remembered relay and picks the next best one. Use
+  it when a relay is slow or keeps failing.
+- Volunteer-run relays are preferred. VPN Gate's own `public-vpn-*` relays
+  limit each session to a few hundred kbit/s, so they are only used when no
+  volunteer relay connects.
+- Relays sometimes refuse a login; ksttk-dl moves on to the next one. If a relay
+  drops during a download, the next request connects to a new one and the
+  failed files are retried.
+- Relays are run by volunteers for the VPN Gate academic experiment and their
+  speed varies, typically a few Mbit/s. Downloading only the categories you
+  need keeps runs short.
+
+`--jp` and `--proxy` cannot be combined.
 
 ### Proxy
 

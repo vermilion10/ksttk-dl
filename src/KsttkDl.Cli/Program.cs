@@ -4,6 +4,7 @@ using KsttkDl.Core.Catalog;
 using KsttkDl.Core.Download;
 using KsttkDl.Core.Extraction;
 using KsttkDl.Core.MasterData;
+using KsttkDl.Core.Tunnel;
 
 namespace KsttkDl.Cli;
 
@@ -32,20 +33,59 @@ public static class Program
             Recursive = true,
         };
 
+        var jpOption = new Option<bool>("--jp")
+        {
+            Description = "Connect through a Japanese VPN Gate relay built into ksttk-dl; no VPN or proxy needed",
+            Recursive = true,
+        };
+
+        var switchRelayOption = new Option<bool>("--switch-relay")
+        {
+            Description = "With --jp, skip the saved relay and use the next best one",
+            Recursive = true,
+        };
+
         var root = new RootCommand("Download and organize game assets straight from the CDN.");
         root.Options.Add(dataOption);
         root.Options.Add(outputOption);
         root.Options.Add(proxyOption);
+        root.Options.Add(jpOption);
+        root.Options.Add(switchRelayOption);
 
+        var relayCommand = BuildRelayCommand();
         root.Subcommands.Add(BuildRefreshCommand(dataOption));
         root.Subcommands.Add(BuildWorldsCommand(dataOption));
         root.Subcommands.Add(BuildDownloadCommand(dataOption, outputOption));
         root.Subcommands.Add(BuildExtractCommand(dataOption, outputOption));
+        root.Subcommands.Add(relayCommand);
 
         var parseResult = root.Parse(args);
+        if (parseResult.Errors.Count > 0)
+        {
+            return await parseResult.InvokeAsync();
+        }
 
-        // the shared client is built on first use, so the proxy is applied before any command runs
-        if (parseResult.Errors.Count == 0 && parseResult.GetValue(proxyOption) is { Length: > 0 } proxy)
+        var proxy = parseResult.GetValue(proxyOption);
+        var useTunnel = parseResult.GetValue(jpOption) || parseResult.CommandResult.Command == relayCommand;
+
+        if (useTunnel && proxy is { Length: > 0 })
+        {
+            Console.Error.WriteLine("Use either --jp or --proxy, not both.");
+            return 1;
+        }
+
+        // the shared client is built on first use, so the network path is chosen before any command runs
+        if (useTunnel)
+        {
+            _tunnel = new JpTunnel(parseResult.GetValue(dataOption)!, Console.WriteLine);
+            if (parseResult.GetValue(switchRelayOption))
+            {
+                _tunnel.ForgetRelay();
+            }
+
+            CdnHttpClient.UseTunnel(_tunnel);
+        }
+        else if (proxy is { Length: > 0 })
         {
             try
             {
@@ -58,7 +98,52 @@ public static class Program
             }
         }
 
-        return await parseResult.InvokeAsync();
+        try
+        {
+            return await parseResult.InvokeAsync();
+        }
+        finally
+        {
+            if (_tunnel is not null)
+            {
+                await _tunnel.DisposeAsync();
+            }
+        }
+    }
+
+    private static JpTunnel? _tunnel;
+
+    private static Command BuildRelayCommand()
+    {
+        var command = new Command("relay", "Connect to a Japanese VPN Gate relay and show the address the CDN will see");
+
+        command.SetAction(async (_, cancellationToken) =>
+        {
+            try
+            {
+                var relay = await _tunnel!.ConnectRelayAsync(cancellationToken);
+
+                // cloudflare's trace page reports the caller's address and country as key=value lines
+                var trace = await CdnHttpClient.Instance.GetStringAsync(
+                    "https://www.cloudflare.com/cdn-cgi/trace", cancellationToken);
+                var fields = trace.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(line => line.Split('=', 2))
+                    .Where(parts => parts.Length == 2)
+                    .ToDictionary(parts => parts[0], parts => parts[1]);
+
+                var country = fields.GetValueOrDefault("loc", "?");
+                Console.WriteLine($"Relay:   {relay.HostName} ({relay.Ip})");
+                Console.WriteLine($"Exit IP: {fields.GetValueOrDefault("ip", "?")} ({country})");
+                return country == "JP" ? 0 : 1;
+            }
+            catch (Exception ex) when (ex is IOException or HttpRequestException)
+            {
+                Console.Error.WriteLine(ex.Message);
+                return 1;
+            }
+        });
+
+        return command;
     }
 
     private static readonly AssetCategory[] AllCategories = Enum.GetValues<AssetCategory>();
@@ -190,10 +275,11 @@ public static class Program
                 versions = await workspace.FetchVersionsAsync(server.Host, cancellationToken);
                 Console.WriteLine($"Asset versions: {versions.Categories.Count} categories");
             }
-            catch (HttpRequestException ex)
+            catch (Exception ex) when (ex is HttpRequestException or IOException or TaskCanceledException
+                                       && !cancellationToken.IsCancellationRequested)
             {
                 Console.Error.WriteLine($"Could not reach {server.Host}: {ex.Message}");
-                Console.Error.WriteLine("The CDN is Japan-only; use a Japanese network path or --proxy.");
+                Console.Error.WriteLine("The CDN is Japan-only; use --jp, --proxy, or a Japanese network path.");
                 return 1;
             }
 
