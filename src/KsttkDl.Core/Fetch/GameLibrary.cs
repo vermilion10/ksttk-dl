@@ -88,6 +88,41 @@ public sealed class GameLibrary
         return stats with { Skipped = stats.Skipped + entries.Count - pending.Count };
     }
 
+    /// <summary>
+    /// whether the cdn has the file, asked with a HEAD request so nothing is downloaded. a 404 is recorded like
+    /// one found while downloading; null when the server could not be asked
+    /// </summary>
+    public async Task<bool?> ExistsAsync(string host, AssetEntry entry, CancellationToken cancellationToken = default)
+    {
+        if (LocalPath(entry) is not null)
+        {
+            return true;
+        }
+
+        if (IsMissing(entry))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Head, entry.Url(host));
+            using var response = await CdnHttpClient.Instance.SendAsync(request, cancellationToken);
+            if (response.StatusCode is System.Net.HttpStatusCode.NotFound or System.Net.HttpStatusCode.Forbidden)
+            {
+                _index.Record(entry.Path, new IndexRecord { Version = entry.VersionQuery, Missing = true });
+                _index.Save();
+                return false;
+            }
+
+            return response.IsSuccessStatusCode ? true : null;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or TaskCanceledException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>English name when there is one, the Japanese name otherwise.</summary>
     public string ShipName(int shipId) =>
         Start2.Ships.TryGetValue(shipId, out var ship) ? Names.Ship(ship).English : "";

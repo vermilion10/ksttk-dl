@@ -24,9 +24,11 @@ you open:
   or dragged (arrow keys move it by 1 px, Shift by 10). Rooms can be saved,
   loaded and randomized, and exported as a 1200×720 or 2400×1440 PNG.
   The secretary's CG can be the current one (seasonal art while a season
-  runs), the damaged one, the special-remodel art where the ship has it, or
-  an earlier CG that ksttk-dl kept in `output/history` when a newer version
-  replaced it. The *Port UI* layer draws the port interface in any of its
+  runs) or the original, each also damaged. During a season the original is
+  enlarged from the card-sized art, so its size and place are estimates; each
+  layer has a Size slider for that. Ships with a special remodel also offer
+  that animation's art, and earlier CGs that ksttk-dl kept in `output/history`
+  when a newer version replaced them are listed too. The *Port UI* layer draws the port interface in any of its
   skins, in the game's own font, with an editable admiral name, rank, counts,
   resources and clock.
 - **画面 UI.** Every interface sprite sheet and fixed image by screen, with its

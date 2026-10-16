@@ -22,6 +22,7 @@ public sealed class RoomLayer(string key, string kanji, string label) : Observab
     private int _offsetX;
     private int _offsetY;
     private double _opacity = 1;
+    private double _scale = 1;
     private bool _visible = true;
     private string _caption = "";
 
@@ -34,7 +35,31 @@ public sealed class RoomLayer(string key, string kanji, string label) : Observab
     public IReadOnlyList<SpriteImage> Sprites
     {
         get => _sprites;
-        set => Set(ref _sprites, value);
+        set
+        {
+            if (Set(ref _sprites, value))
+            {
+                Raise(nameof(CentreX));
+                Raise(nameof(CentreY));
+            }
+        }
+    }
+
+    /// <summary>the middle of the layer's pictures, which <see cref="Scale"/> sizes around.</summary>
+    public double CentreX => _sprites.Count == 0 ? 600 : (_sprites.Min(s => s.X) + _sprites.Max(s => s.X + s.Width)) / 2;
+
+    public double CentreY => _sprites.Count == 0 ? 360 : (_sprites.Min(s => s.Y) + _sprites.Max(s => s.Y + s.Height)) / 2;
+
+    public double Scale
+    {
+        get => _scale;
+        set
+        {
+            if (Set(ref _scale, Math.Round(Math.Clamp(value, 0.25, 3), 2)))
+            {
+                Raise(nameof(IsMoved));
+            }
+        }
     }
 
     /// <summary>what is placed on this layer, e.g. a furniture title.</summary>
@@ -68,7 +93,7 @@ public sealed class RoomLayer(string key, string kanji, string label) : Observab
         }
     }
 
-    public bool IsMoved => _offsetX != 0 || _offsetY != 0;
+    public bool IsMoved => _offsetX != 0 || _offsetY != 0 || _scale != 1;
 
     public double Opacity
     {
@@ -82,13 +107,14 @@ public sealed class RoomLayer(string key, string kanji, string label) : Observab
         set => Set(ref _visible, value);
     }
 
-    public LayerTweak Tweak => new() { OffsetX = _offsetX, OffsetY = _offsetY, Opacity = _opacity, Hidden = !_visible };
+    public LayerTweak Tweak => new() { OffsetX = _offsetX, OffsetY = _offsetY, Opacity = _opacity, Scale = _scale, Hidden = !_visible };
 
     public void Apply(LayerTweak? tweak)
     {
         OffsetX = tweak?.OffsetX ?? 0;
         OffsetY = tweak?.OffsetY ?? 0;
         Opacity = tweak?.Opacity ?? 1;
+        Scale = tweak?.Scale ?? 1;
         Visible = !(tweak?.Hidden ?? false);
     }
 }
@@ -117,6 +143,7 @@ public sealed class RoomViewModel : Observable
     private string _shownTime = "";
     private int _secretaryVersion;
     private int _portUiVersion;
+    private readonly HashSet<int> _hasSpecialArt = [];
     private TimeOfDay _time = RoomComposer.TimeAt(DateTime.Now.Hour);
     private string _search = "";
     private string _presetName = "";
@@ -397,9 +424,11 @@ public sealed class RoomViewModel : Observable
 
         foreach (var group in library.Start2.Furniture.Where(f => f.Title.Length > 0).GroupBy(f => (FurnitureSlot)f.Type))
         {
+            // furniture with no pictures on the server never appears in game, so it is not offered
             _slotTiles[group.Key] = group.OrderBy(f => f.No)
                 .Select(f => new EntityTile(f.Id, f.Title, $"No.{f.No}", f.Type,
                     library.Find("furniture", f.Id, "thumbnail") ?? library.Find("furniture", f.Id, "normal")))
+                .Where(t => t.Picture is not null)
                 .ToList();
         }
 
@@ -504,6 +533,7 @@ public sealed class RoomViewModel : Observable
         }
 
         ReloadArts(composer, shipId);
+        _ = CheckSpecialArtAsync(composer, shipId);
         var sprite = composer.Secretary(shipId, _art, _leftOfCentre);
         var sprites = await LoadSpritesAsync(sprite is null ? [] : [sprite]);
         if (version == _secretaryVersion)
@@ -512,9 +542,28 @@ public sealed class RoomViewModel : Observable
         }
     }
 
+    /// <summary>asks the server whether the ship has special-remodel art, and lists it if so.</summary>
+    private async Task CheckSpecialArtAsync(RoomComposer composer, int shipId)
+    {
+        var library = AppServices.Current.Library;
+        if (library is null || AppServices.Current.Host is not { } host || _hasSpecialArt.Contains(shipId))
+        {
+            return;
+        }
+
+        if (await library.ExistsAsync(host, composer.SpecialEntry(shipId)) == true)
+        {
+            _hasSpecialArt.Add(shipId);
+            if (shipId == _secretaryId)
+            {
+                ReloadArts(composer, shipId);
+            }
+        }
+    }
+
     private void ReloadArts(RoomComposer composer, int shipId)
     {
-        var arts = composer.SecretaryArts(shipId);
+        var arts = composer.SecretaryArts(shipId, _hasSpecialArt.Contains(shipId));
         if (arts.All(a => a.Key != _art))
         {
             _art = RoomComposer.CurrentArt;
@@ -752,15 +801,19 @@ public sealed class RoomViewModel : Observable
             context.PushClip(new RectangleGeometry(new Rect(0, 0, RoomComposer.Width, RoomComposer.Height)));
             foreach (var layer in Layers.Where(l => l.Visible && l.Opacity > 0))
             {
+                // as on the canvas: sized around the layer's centre, then moved
                 context.PushOpacity(layer.Opacity);
+                context.PushTransform(new TranslateTransform(layer.OffsetX, layer.OffsetY));
+                context.PushTransform(new ScaleTransform(layer.Scale, layer.Scale, layer.CentreX, layer.CentreY));
                 foreach (var sprite in layer.Sprites)
                 {
                     context.PushOpacity(sprite.Opacity);
-                    context.DrawImage(sprite.Image,
-                        new Rect(sprite.X + layer.OffsetX, sprite.Y + layer.OffsetY, sprite.Width, sprite.Height));
+                    context.DrawImage(sprite.Image, new Rect(sprite.X, sprite.Y, sprite.Width, sprite.Height));
                     context.Pop();
                 }
 
+                context.Pop();
+                context.Pop();
                 context.Pop();
             }
 

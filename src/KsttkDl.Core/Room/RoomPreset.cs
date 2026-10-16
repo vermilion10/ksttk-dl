@@ -12,6 +12,9 @@ public sealed record LayerTweak
 
     public double Opacity { get; init; } = 1;
 
+    /// <summary>size around the layer's centre; 1 is as the game draws it.</summary>
+    public double Scale { get; init; } = 1;
+
     public bool Hidden { get; init; }
 }
 

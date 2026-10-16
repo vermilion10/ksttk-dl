@@ -3,6 +3,8 @@ using KsttkDl.Core.Catalog;
 using KsttkDl.Core.Fetch;
 using KsttkDl.Core.MasterData;
 using KsttkDl.Core.Naming;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace KsttkDl.Core.Room;
 
@@ -79,25 +81,42 @@ public sealed class RoomComposer(GameLibrary library)
     public const string CurrentArt = "full";
     public const string DamagedArt = "full_dmg";
     public const string SpecialArt = "sp";
+    public const string OriginalArt = "original";
+    public const string OriginalDamagedArt = "original_dmg";
     private const string SpecialType = "sp_remodel/full_x2";
+
+    // where a full CG's art typically stands in the room (its centre and top), and how much larger it is than
+    // the card-sized character_full art: medians over 290 ships. pictures without offsets of their own are placed
+    // by these
+    private const double CardArtScale = 1.91;
+    private const int CardArtCentreX = 910;
+    private const int CardArtTop = 107;
 
     /// <summary>
     /// the pictures a ship can stand in the room with: its current CG (seasonal art while a season runs, since
     /// the game swaps the file in place), the damaged one, the special-remodel art, which keeps the original
     /// art at twice the size, and any earlier CGs kept in the history folder
     /// </summary>
-    public IReadOnlyList<SecretaryArt> SecretaryArts(int shipId)
+    /// <param name="hasSpecialArt">the server has confirmed the ship's special-remodel art.</param>
+    public IReadOnlyList<SecretaryArt> SecretaryArts(int shipId, bool hasSpecialArt = false)
     {
+        // during a season the server only has the seasonal full CG, while the card-sized art keeps the original
+        const string current = "The full CG the port shows now: seasonal art while a season runs";
+        const string original = "The original art, enlarged from the card-sized picture (character full in the ship "
+                                + "menu). Its size and place are estimates; adjust them with Size and a drag";
         var arts = new List<SecretaryArt>
         {
-            new(CurrentArt, "Current CG", "What the port shows now, seasonal art included"),
-            new(DamagedArt, "Damaged (中破)", "The current CG, damaged"),
+            new(CurrentArt, "Current CG", current),
+            new(DamagedArt, "Current CG, damaged (中破)", current),
+            new(OriginalArt, "Original CG (enlarged)", original),
+            new(OriginalDamagedArt, "Original CG, damaged (enlarged)", original),
         };
 
-        if (!library.IsMissing(SpecialEntry(shipId)))
+        // offered once the server has confirmed it; only ships with a special remodel have one
+        if (hasSpecialArt || library.LocalPath(SpecialEntry(shipId)) is not null)
         {
             arts.Add(new(SpecialArt, "Special-remodel art",
-                "The ship's own art from the special-remodel animation, drawn at half size. Only some ships have it"));
+                "The ship's own art from the special-remodel animation, drawn at half size"));
         }
 
         foreach (var (type, version, _) in HistoryFiles(shipId))
@@ -114,12 +133,19 @@ public sealed class RoomComposer(GameLibrary library)
     public AssetEntry? SecretaryEntry(int shipId, string art) => art switch
     {
         SpecialArt => SpecialEntry(shipId),
+        OriginalArt => CardArtEntry(shipId, false),
+        OriginalDamagedArt => CardArtEntry(shipId, true) ?? CardArtEntry(shipId, false),
         DamagedArt => library.Find("ship", shipId, "full_dmg") ?? library.Find("ship", shipId, "full"),
         _ when art.StartsWith("history:", StringComparison.Ordinal) => null,
         _ => library.Find("ship", shipId, "full"),
     };
 
-    private AssetEntry SpecialEntry(int shipId) =>
+    /// <summary>the card-sized art; it keeps the original look while a seasonal CG replaces the full one.</summary>
+    public AssetEntry? CardArtEntry(int shipId, bool damaged) =>
+        library.Find("ship", shipId, damaged ? "character_full_dmg" : "character_full");
+
+    /// <summary>the special-remodel art, which only ships with a special remodel have.</summary>
+    public AssetEntry SpecialEntry(int shipId) =>
         library.Find("ship", shipId, SpecialType) ?? new AssetEntry
         {
             Path = AssetPath.GetPath(shipId, "ship", SpecialType, "png"),
@@ -128,6 +154,31 @@ public sealed class RoomComposer(GameLibrary library)
             EntityId = shipId,
             AssetType = SpecialType,
         };
+
+    private static Rectangle AlphaBounds(Image<Rgba32> image)
+    {
+        int left = image.Width, top = image.Height, right = -1, bottom = -1;
+        image.ProcessPixelRows(rows =>
+        {
+            for (var y = 0; y < rows.Height; y++)
+            {
+                var row = rows.GetRowSpan(y);
+                for (var x = 0; x < row.Length; x++)
+                {
+                    if (row[x].A <= 40)
+                    {
+                        continue;
+                    }
+
+                    left = Math.Min(left, x);
+                    right = Math.Max(right, x);
+                    top = Math.Min(top, y);
+                    bottom = Math.Max(bottom, y);
+                }
+            }
+        });
+        return right < 0 ? Rectangle.Empty : new Rectangle(left, top, right - left + 1, bottom - top + 1);
+    }
 
     /// <summary>kept copies of a ship's CGs: (full or full_dmg, version, path), newest first.</summary>
     private IEnumerable<(string Type, string Version, string Path)> HistoryFiles(int shipId)
@@ -206,7 +257,7 @@ public sealed class RoomComposer(GameLibrary library)
 
         string? path;
         int[]? offset;
-        var scale = 1.0;
+
         if (art.StartsWith("history:", StringComparison.Ordinal))
         {
             // placed with the offsets that were current alongside that version, when they were recorded
@@ -219,16 +270,37 @@ public sealed class RoomComposer(GameLibrary library)
                 ? recorded?.Damaged ?? recorded?.Normal ?? graph.BokoD ?? graph.BokoN
                 : recorded?.Normal ?? graph.BokoN;
         }
+        else if (art is OriginalArt or OriginalDamagedArt or SpecialArt)
+        {
+            // neither picture carries offsets that fit it while a seasonal CG holds the current ones, so the art is
+            // centred where full CGs usually stand: the special-remodel art at half size, the card art enlarged
+            path = SecretaryEntry(shipId, art) is { } original ? library.LocalPath(original) : null;
+            if (path is null)
+            {
+                return null;
+            }
+
+            Rectangle box;
+            try
+            {
+                using var image = Image.Load<Rgba32>(path);
+                box = AlphaBounds(image);
+            }
+            catch (Exception ex) when (ex is IOException or UnknownImageFormatException or InvalidImageContentException)
+            {
+                return null;
+            }
+
+            var artScale = art == SpecialArt ? 0.5 : CardArtScale;
+            var artShift = leftOfCentre ? (ShortMoveShips.Contains(shipId) ? -150 : -200) : 0;
+            var x = (int)Math.Round(CardArtCentreX - artScale * (box.Left + box.Width / 2.0)) + artShift;
+            var y = (int)Math.Round(CardArtTop - artScale * box.Top);
+            return new RoomSprite(path, null, x, y) { Scale = artScale };
+        }
         else
         {
             path = SecretaryEntry(shipId, art) is { } entry ? library.LocalPath(entry) : null;
             offset = art == DamagedArt ? graph.BokoD ?? graph.BokoN : graph.BokoN;
-
-            // twice the full CG's size on the same canvas, so at half size it lands where the CG would
-            if (art == SpecialArt)
-            {
-                scale = 0.5;
-            }
         }
 
         if (path is null)
@@ -238,7 +310,7 @@ public sealed class RoomComposer(GameLibrary library)
 
         offset ??= [0, 0];
         var shift = leftOfCentre ? (ShortMoveShips.Contains(shipId) ? -150 : -200) : 0;
-        return new RoomSprite(path, null, SecretaryX + offset[0] + shift, SecretaryY + offset[1]) { Scale = scale };
+        return new RoomSprite(path, null, SecretaryX + offset[0] + shift, SecretaryY + offset[1]);
     }
 
     public static (int X, int Y) Anchor(FurnitureSlot slot, int width, int height) => slot switch

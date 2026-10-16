@@ -115,6 +115,13 @@
                             <Slider Minimum="0" Maximum="1" SmallChange="0.05" LargeChange="0.1" Margin="0,4,0,8"
                                     Value="{Binding Selected.Opacity}" AutomationProperties.Name="Layer opacity" />
                             <DockPanel>
+                                <TextBlock DockPanel.Dock="Right" Style="{StaticResource Text.Caption}"
+                                           Text="{Binding Selected.Scale, StringFormat={}{0:P0}}" />
+                                <TextBlock Text="Size" Style="{StaticResource Text.Caption}" />
+                            </DockPanel>
+                            <Slider Minimum="0.25" Maximum="3" SmallChange="0.01" LargeChange="0.1" Margin="0,4,0,8"
+                                    Value="{Binding Selected.Scale}" AutomationProperties.Name="Layer size" />
+                            <DockPanel>
                                 <TextBlock DockPanel.Dock="Right" Style="{StaticResource Text.Caption}">
                                     <Run Text="{Binding Selected.OffsetX, Mode=OneWay}" />
                                     <Run Text="," />
@@ -156,7 +163,11 @@
                                             <ItemsControl ItemsSource="{Binding Sprites}" Opacity="{Binding Opacity}" Focusable="False"
                                                           Visibility="{Binding Visible, Converter={StaticResource BoolToVisibility}}">
                                                 <ItemsControl.RenderTransform>
-                                                    <TranslateTransform X="{Binding OffsetX}" Y="{Binding OffsetY}" />
+                                                    <TransformGroup>
+                                                        <ScaleTransform ScaleX="{Binding Scale}" ScaleY="{Binding Scale}"
+                                                                        CenterX="{Binding CentreX}" CenterY="{Binding CentreY}" />
+                                                        <TranslateTransform X="{Binding OffsetX}" Y="{Binding OffsetY}" />
+                                                    </TransformGroup>
                                                 </ItemsControl.RenderTransform>
                                                 <ItemsControl.ItemsPanel>
                                                     <ItemsPanelTemplate>

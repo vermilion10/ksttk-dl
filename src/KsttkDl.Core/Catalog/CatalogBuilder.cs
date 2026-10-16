@@ -18,8 +18,9 @@ public sealed class CatalogBuilder(
         [5358, 5433, 5434, 5435, 5439, 5440, 5441, 5446];
 
     /// <summary>furniture ids with no "normal" image despite being inactive.</summary>
+    /// <summary>furniture with no pictures on the server at all, which the game never shows.</summary>
     private static readonly HashSet<int> FurnitureWithoutNormal =
-        [8, 32, 43, 62, 121, 131, 134, 150, 153, 163, 167, 169, 173, 177, 190, 191];
+        [8, 43, 62, 121, 131, 134, 150, 153, 163, 167, 169, 173, 177, 190, 191];
 
     private static readonly HashSet<int> MissingSoundEffects =
         [119, 232, 233, 234, 236, 251, 259, 260, 261, 262, 263];
