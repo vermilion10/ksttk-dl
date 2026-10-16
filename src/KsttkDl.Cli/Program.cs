@@ -16,24 +16,49 @@ public static class Program
         {
             Description = "Directory holding the cached master data and translations",
             DefaultValueFactory = _ => "data",
+            Recursive = true,
         };
 
         var outputOption = new Option<string>("--output")
         {
             Description = "Output directory; the raw mirror lives in <output>/raw",
             DefaultValueFactory = _ => "output",
+            Recursive = true,
+        };
+
+        var proxyOption = new Option<string?>("--proxy")
+        {
+            Description = "Send requests through a proxy, e.g. socks5://127.0.0.1:1080 or http://user:pass@host:8080",
+            Recursive = true,
         };
 
         var root = new RootCommand("Download and organize game assets straight from the CDN.");
         root.Options.Add(dataOption);
         root.Options.Add(outputOption);
+        root.Options.Add(proxyOption);
 
         root.Subcommands.Add(BuildRefreshCommand(dataOption));
         root.Subcommands.Add(BuildWorldsCommand(dataOption));
         root.Subcommands.Add(BuildDownloadCommand(dataOption, outputOption));
         root.Subcommands.Add(BuildExtractCommand(dataOption, outputOption));
 
-        return await root.Parse(args).InvokeAsync();
+        var parseResult = root.Parse(args);
+
+        // the shared client is built on first use, so the proxy is applied before any command runs
+        if (parseResult.Errors.Count == 0 && parseResult.GetValue(proxyOption) is { Length: > 0 } proxy)
+        {
+            try
+            {
+                CdnHttpClient.UseProxy(proxy);
+            }
+            catch (ArgumentException ex)
+            {
+                Console.Error.WriteLine(ex.Message);
+                return 1;
+            }
+        }
+
+        return await parseResult.InvokeAsync();
     }
 
     private static readonly AssetCategory[] AllCategories = Enum.GetValues<AssetCategory>();
@@ -168,7 +193,7 @@ public static class Program
             catch (HttpRequestException ex)
             {
                 Console.Error.WriteLine($"Could not reach {server.Host}: {ex.Message}");
-                Console.Error.WriteLine("The CDN is Japan-only; check the machine's network path.");
+                Console.Error.WriteLine("The CDN is Japan-only; use a Japanese network path or --proxy.");
                 return 1;
             }
 

@@ -24,8 +24,8 @@ kc3-translations' `tools/convert-quotes.py`.
 ## Requirements
 
 - .NET 8 SDK
-- A network path into Japan; the CDN is IP-restricted and ksttk-dl does not proxy
-  requests
+- A network path into Japan. The CDN only serves Japanese IP addresses, so
+  either run ksttk-dl from a Japanese connection or pass `--proxy`
 
 ## Usage
 
@@ -42,6 +42,22 @@ Run `refresh-data` before the first download and after game updates. All other
 commands read from `data/`.
 
 Both `download` and `extract` accept `--data <dir>` and `--output <dir>`.
+
+### Proxy
+
+Every command accepts `--proxy <url>` to send its requests through a proxy
+with a Japanese exit:
+
+```sh
+ksttk-dl download --world 17 --proxy socks5://127.0.0.1:1080
+ksttk-dl refresh-data --proxy http://user:pass@proxy.example:8080
+```
+
+Supported schemes are `http`, `https`, `socks4`, `socks4a` and `socks5`. A
+bare `host:port` is treated as an HTTP proxy. Credentials in the URL are used
+for proxy authentication; percent-encode special characters in them. Without
+`--proxy`, ksttk-dl follows the standard `HTTP_PROXY`, `HTTPS_PROXY` and
+`ALL_PROXY` environment variables.
 
 ### Download options
 
