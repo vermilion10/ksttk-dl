@@ -24,6 +24,9 @@
                     <TextBlock Text="{Binding Summary}" Style="{StaticResource Text.Caption}" Margin="14,0,0,5" VerticalAlignment="Bottom" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
+                    <ToggleButton Style="{StaticResource Chip}" Content="季節 Seasonal" Margin="0,0,8,0" VerticalAlignment="Center"
+                                  IsChecked="{Binding Seasonal}"
+                                  ToolTip="Past seasonal CGs. The server keeps them at card size only once their season ends" />
                     <ToggleButton Style="{StaticResource Chip}" Content="深海 Abyssal" Margin="0,0,10,0" VerticalAlignment="Center"
                                   IsChecked="{Binding Abyssal}" ToolTip="Show abyssal ships instead of shipgirls" />
                     <Grid Width="260">

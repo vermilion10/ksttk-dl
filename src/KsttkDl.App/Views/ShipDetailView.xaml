@@ -72,7 +72,7 @@
 
                     <StackPanel Grid.Row="2" Margin="0,14,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <Button Content="Open folder" Command="{Binding OpenFolder}" Margin="0,0,8,0" />
+                            <Button Content="Show in folder" ToolTip="Open the folder with this file selected" Command="{Binding OpenFolder}" Margin="0,0,8,0" />
                             <Button Style="{StaticResource Button.Ghost}" Content="Download again" Command="{Binding FetchAll}"
                                     ToolTip="Fetch any pictures or voices that are still missing" />
                         </StackPanel>

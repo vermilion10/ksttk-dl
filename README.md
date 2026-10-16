@@ -11,7 +11,9 @@ The Windows app (`ksttk-dl-app`) browses the game's assets and downloads only wh
 you open:
 
 - **Ships.** The ship library as cards in their rarity frames, with filters
-  by ship type, search by English name, reading or id, and an abyssal view.
+  by ship type, search by English name, reading or id, an abyssal view, and a
+  seasonal view of past seasonal CGs (kept on the server at card size only
+  once their season ends).
   Opening a ship fetches its CGs, cards and banners and every voice line, with
   the English quote beside each line and playback built in.
 - **装備 Equipment** and **家具 Furniture.** Galleries filtered by equipment

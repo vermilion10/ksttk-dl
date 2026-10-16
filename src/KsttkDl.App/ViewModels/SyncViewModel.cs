@@ -499,4 +499,8 @@ public sealed class SyncViewModel : Observable
         Directory.CreateDirectory(path);
         Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true });
     }
+
+    /// <summary>opens the file's folder with the file selected.</summary>
+    public static void ShowFile(string path) =>
+        Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true });
 }

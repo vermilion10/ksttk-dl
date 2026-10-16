@@ -84,6 +84,7 @@ public sealed class ShipsViewModel : Observable
     private List<ShipTile> _all = [];
     private string _search = "";
     private bool _abyssal;
+    private bool _seasonal;
     private ShipDetailViewModel? _detail;
 
     public ShipsViewModel(MainViewModel main)
@@ -139,6 +140,34 @@ public sealed class ShipsViewModel : Observable
         {
             if (Set(ref _abyssal, value))
             {
+                if (value && _seasonal)
+                {
+                    _seasonal = false;
+                    Raise(nameof(Seasonal));
+                }
+
+                Load();
+            }
+        }
+    }
+
+    /// <summary>
+    /// the archive of past seasonal art (graph ids 5001 and up). the server keeps only the card-sized pictures of
+    /// these once their season ends, and the master data does not say which ship each belongs to
+    /// </summary>
+    public bool Seasonal
+    {
+        get => _seasonal;
+        set
+        {
+            if (Set(ref _seasonal, value))
+            {
+                if (value && _abyssal)
+                {
+                    _abyssal = false;
+                    Raise(nameof(Abyssal));
+                }
+
                 Load();
             }
         }
@@ -177,6 +206,18 @@ public sealed class ShipsViewModel : Observable
         }
 
         var graphs = library.Start2.ShipGraphs.ToDictionary(g => g.Id);
+        if (_seasonal)
+        {
+            _all = library.Catalog
+                .Where(e => e.Group == "ship-seasonal" && e.AssetType == "character_full")
+                .OrderBy(e => e.EntityId)
+                .Select(e => new ShipTile(new MstShip(e.EntityId, $"季節 {e.EntityId}", "-", 0), $"Seasonal CG {e.EntityId}", "", e))
+                .ToList();
+            Types.Clear();
+            Apply();
+            return;
+        }
+
         _all = library.Start2.Ships.Values
             .Where(s => s.Name.Length > 0 && graphs.ContainsKey(s.Id))
             .Where(s => _abyssal ? s.SortNo == 0 && s.Id > 1500 : s.SortNo > 0)
@@ -280,6 +321,7 @@ public sealed class ShipDetailViewModel : Observable, IDisposable
         }.Where(s => s.Length > 0));
 
         Images = new ObservableCollection<ImageAsset>(library.ShipImages(ship.Id)
+            .Where(e => e.Path.EndsWith(".png", StringComparison.Ordinal))
             .OrderBy(e => Array.IndexOf(ImageOrder, e.AssetType) is var i && i < 0 ? 99 : i)
             .Select(e => new ImageAsset(e, e.AssetType.Replace('_', ' '))));
 
@@ -296,7 +338,7 @@ public sealed class ShipDetailViewModel : Observable, IDisposable
             var path = Selected?.ImagePath ?? Images.Select(i => i.ImagePath).FirstOrDefault(p => p is not null);
             if (path is not null)
             {
-                SyncViewModel.OpenFolder(Path.GetDirectoryName(path)!);
+                SyncViewModel.ShowFile(path);
             }
         });
 
@@ -307,6 +349,7 @@ public sealed class ShipDetailViewModel : Observable, IDisposable
             image.Refresh();
         }
 
+        DropAbsent();
         Selected = Images.FirstOrDefault();
         _ = FetchAllAsync();
     }
@@ -397,7 +440,22 @@ public sealed class ShipDetailViewModel : Observable, IDisposable
                 image.Refresh();
             }
 
+            DropAbsent();
             Raise(nameof(Selected));
+        }
+    }
+
+    /// <summary>rare variants exist for some ships only; the ones the server lacks are not worth a blank tile.</summary>
+    private void DropAbsent()
+    {
+        foreach (var image in Images.Where(i => i.Absent).ToList())
+        {
+            Images.Remove(image);
+        }
+
+        if (Selected is not null && !Images.Contains(Selected))
+        {
+            Selected = Images.FirstOrDefault();
         }
     }
 

@@ -41,9 +41,9 @@ public sealed class EntityDetailViewModel : Observable
         Select = new RelayCommand(p => Selected = p as ImageAsset);
         OpenFolder = new RelayCommand(() =>
         {
-            if (Images.Select(i => i.ImagePath).FirstOrDefault(p => p is not null) is { } path)
+            if ((Selected?.ImagePath ?? Images.Select(i => i.ImagePath).FirstOrDefault(p => p is not null)) is { } path)
             {
-                SyncViewModel.OpenFolder(Path.GetDirectoryName(path)!);
+                SyncViewModel.ShowFile(path);
             }
         });
 
@@ -306,7 +306,7 @@ public sealed class MapsViewModel : Observable
         {
             if (_selected?.ImagePath is { } path)
             {
-                SyncViewModel.OpenFolder(Path.GetDirectoryName(path)!);
+                SyncViewModel.ShowFile(path);
             }
         });
         Load();

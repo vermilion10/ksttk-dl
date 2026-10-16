@@ -51,7 +51,7 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <DockPanel Margin="0,0,0,12">
-                        <Button Content="Open folder" Command="{Binding OpenFolder}" DockPanel.Dock="Right" VerticalAlignment="Center" />
+                        <Button Content="Show in folder" ToolTip="Open the folder with this file selected" Command="{Binding OpenFolder}" DockPanel.Dock="Right" VerticalAlignment="Center" />
                         <StackPanel>
                             <TextBlock Style="{StaticResource Text.Heading}" FontSize="22">
                                 <Run Text="{Binding Selected.Code, Mode=OneWay}" />
