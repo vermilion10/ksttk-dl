@@ -35,6 +35,12 @@
         <DataTemplate DataType="{x:Type vm:RoomViewModel}">
             <views:RoomView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:UiViewModel}">
+            <views:UiView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:AudioViewModel}">
+            <views:AudioView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
             <views:SettingsView />
         </DataTemplate>
@@ -97,7 +103,8 @@
 
                 <!-- the port menu rail -->
                 <Border Background="{DynamicResource Brush.Rail}" BorderBrush="{DynamicResource Brush.RailLine}" BorderThickness="0,0,1,0">
-                    <StackPanel Margin="0,22,0,0">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                    <StackPanel Margin="0,18,0,8">
                         <RadioButton Style="{StaticResource Medallion}" Content="艦娘" Tag="Ships" Background="{StaticResource Medal.Ships}" AutomationProperties.Name="Ships"
                                      IsChecked="{Binding Page, Converter={StaticResource Equals}, ConverterParameter=Ships}" />
                         <RadioButton Style="{StaticResource Medallion}" Content="装備" Tag="Equipment" Background="{StaticResource Medal.Equipment}" AutomationProperties.Name="Equipment"
@@ -108,12 +115,17 @@
                                      IsChecked="{Binding Page, Converter={StaticResource Equals}, ConverterParameter=Maps}" />
                         <RadioButton Style="{StaticResource Medallion}" Content="部屋" Tag="Room" Background="{StaticResource Medal.Room}" AutomationProperties.Name="Room"
                                      IsChecked="{Binding Page, Converter={StaticResource Equals}, ConverterParameter=Room}" />
+                        <RadioButton Style="{StaticResource Medallion}" Content="画面" Tag="UI" Background="{StaticResource Medal.Ui}" AutomationProperties.Name="UI"
+                                     IsChecked="{Binding Page, Converter={StaticResource Equals}, ConverterParameter=Ui}" />
+                        <RadioButton Style="{StaticResource Medallion}" Content="音響" Tag="Audio" Background="{StaticResource Medal.Audio}" AutomationProperties.Name="Audio"
+                                     IsChecked="{Binding Page, Converter={StaticResource Equals}, ConverterParameter=Audio}" />
                         <Rectangle Height="1" Margin="22,4,22,18" Fill="{DynamicResource Brush.RailLine}" />
                         <RadioButton Style="{StaticResource Medallion}" Content="同期" Tag="Sync" Background="{StaticResource Medal.Sync}" AutomationProperties.Name="Sync"
                                      IsChecked="{Binding Page, Converter={StaticResource Equals}, ConverterParameter=Sync}" />
                         <RadioButton Style="{StaticResource Medallion}" Content="設定" Tag="Settings" Background="{StaticResource Medal.Settings}" AutomationProperties.Name="Settings"
                                      IsChecked="{Binding Page, Converter={StaticResource Equals}, ConverterParameter=Settings}" />
                     </StackPanel>
+                    </ScrollViewer>
                 </Border>
 
                 <!-- the office: honeycomb paper, a faint harbour sketch, then the page -->

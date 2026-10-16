@@ -23,6 +23,16 @@ you open:
   animated furniture shows its first frame. Every layer can be hidden, faded
   or dragged (arrow keys move it by 1 px, Shift by 10). Rooms can be saved,
   loaded and randomized, and exported as a 1200×720 or 2400×1440 PNG.
+  The secretary's CG can be the current one (seasonal art while a season
+  runs), the damaged one, the special-remodel art where the ship has it, or
+  an earlier CG that ksttk-dl kept in `output/history` when a newer version
+  replaced it. The *Port UI* layer draws the port interface in any of its
+  skins, in the game's own font, with an editable admiral name, rank, counts,
+  resources and clock.
+- **画面 UI.** Every interface sprite sheet and fixed image by screen, with its
+  raw path; a sheet is shown whole and cut into its named frames.
+- **音響 Audio.** Port and battle music, fanfares, sound effects, title calls
+  and NPC, event and abyssal lines, playable in place, with their raw paths.
 - **同期 Sync.** Game data refresh, world selection, a connection test that
   reports the address the CDN sees, whole-category downloads with progress,
   and *Organize output*, which produces the same named folders as `extract`.

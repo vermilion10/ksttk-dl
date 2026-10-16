@@ -12,6 +12,8 @@ public enum Page
     Furniture,
     Maps,
     Room,
+    Ui,
+    Audio,
     Settings,
 }
 
@@ -74,6 +76,8 @@ public sealed class MainViewModel : Observable
             Page.Furniture => new FurnitureViewModel(),
             Page.Maps => new MapsViewModel(),
             Page.Room => new RoomViewModel(),
+            Page.Ui => new UiViewModel(),
+            Page.Audio => new AudioViewModel(),
             _ => new SettingsViewModel(),
         };
         _pages[page] = created;

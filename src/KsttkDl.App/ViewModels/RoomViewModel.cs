@@ -4,16 +4,18 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using KsttkDl.App.Infrastructure;
+using KsttkDl.Core.Fonts;
 using KsttkDl.Core.Room;
 using Microsoft.Win32;
 
 namespace KsttkDl.App.ViewModels;
 
 /// <summary>one picture on the room canvas, already cut from its atlas.</summary>
-public sealed record SpriteImage(ImageSource Image, double X, double Y, double Width, double Height);
+public sealed record SpriteImage(ImageSource Image, double X, double Y, double Width, double Height, double Opacity = 1);
 
-/// <summary>a layer of the room: a furniture slot, the view outside, or the secretary.</summary>
+/// <summary>a layer of the room: a furniture slot, the view outside, the secretary or the port interface.</summary>
 public sealed class RoomLayer(string key, string kanji, string label) : Observable
 {
     private IReadOnlyList<SpriteImage> _sprites = [];
@@ -108,9 +110,13 @@ public sealed class RoomViewModel : Observable
     private readonly Dictionary<FurnitureSlot, List<EntityTile>> _slotTiles = [];
     private List<ShipTile> _ships = [];
     private RoomLayer? _selected;
+    private readonly DispatcherTimer _clock = new() { Interval = TimeSpan.FromSeconds(15) };
     private int _secretaryId;
-    private bool _damaged;
+    private string _art = RoomComposer.CurrentArt;
     private bool _leftOfCentre;
+    private string _shownTime = "";
+    private int _secretaryVersion;
+    private int _portUiVersion;
     private TimeOfDay _time = RoomComposer.TimeAt(DateTime.Now.Hour);
     private string _search = "";
     private string _presetName = "";
@@ -130,6 +136,7 @@ public sealed class RoomViewModel : Observable
             new("Desk", "机", "Desk"),
             new("Chest", "棚", "Chest"),
             new("Secretary", "艦", "Secretary"),
+            new("PortUi", "枠", "Port UI"),
         ];
 
         PickFurniture = new RelayCommand(p =>
@@ -185,6 +192,26 @@ public sealed class RoomViewModel : Observable
             AppServices.Current.Notify("Room deleted", _preset?.Name ?? "");
         }, () => _preset is not null);
 
+        PickArt = new RelayCommand(p =>
+        {
+            if (p is SecretaryArt art)
+            {
+                Art = art.Key;
+            }
+        });
+
+        PortUi.Changed += (_, _) => _ = RefreshPortUiAsync();
+
+        // a live clock only redraws when the minute it shows has moved on
+        _clock.Tick += (_, _) =>
+        {
+            if (PortUi.LiveClock && Layer("PortUi").Visible && DateTime.Now.ToString("HH:mm") != _shownTime)
+            {
+                _ = RefreshPortUiAsync();
+            }
+        };
+        _clock.Start();
+
         Gallery.SetColumns(3);
         AppServices.Current.LibraryChanged += (_, _) => _ = LoadAsync();
         ReloadPresets();
@@ -224,23 +251,34 @@ public sealed class RoomViewModel : Observable
     public FurnitureSlot? SelectedSlot =>
         _selected is not null && Enum.TryParse<FurnitureSlot>(_selected.Key, out var slot) ? slot : null;
 
-    /// <summary>Furniture, Ship or Outside: which picker the side panel shows.</summary>
+    /// <summary>the port interface's skin and text.</summary>
+    public PortUiEditor PortUi { get; } = new();
+
+    public static IReadOnlyList<PortSkin> Skins { get; } = Enum.GetValues<PortSkin>();
+
+    /// <summary>the pictures the chosen secretary can use.</summary>
+    public ObservableCollection<SecretaryArt> Arts { get; } = [];
+
+    /// <summary>Furniture, Ship, Outside or PortUi: which picker the side panel shows.</summary>
     public string PickerMode => _selected?.Key switch
     {
         "Secretary" => "Ship",
         "Outside" => "Outside",
+        "PortUi" => "PortUi",
         null => "",
         _ => "Furniture",
     };
 
     public string PickerTitle => _selected is null ? "" : $"{_selected.Kanji}  {_selected.Label}";
 
-    public bool Damaged
+    /// <summary>the key of the secretary's picture, one of <see cref="Arts"/>.</summary>
+    public string Art
     {
-        get => _damaged;
+        get => _art;
         set
         {
-            if (Set(ref _damaged, value))
+            // the list clears its selection while it is refilled; that is not a choice
+            if (!string.IsNullOrEmpty(value) && Set(ref _art, value))
             {
                 _ = SetSecretaryAsync(_secretaryId);
             }
@@ -314,6 +352,8 @@ public sealed class RoomViewModel : Observable
     public ICommand PickFurniture { get; }
 
     public ICommand PickShip { get; }
+
+    public ICommand PickArt { get; }
 
     public ICommand Nudge { get; }
 
@@ -434,17 +474,103 @@ public sealed class RoomViewModel : Observable
             return;
         }
 
+        var library = AppServices.Current.Library!;
+        var version = ++_secretaryVersion;
         _secretaryId = shipId;
         var layer = Layer("Secretary");
-        layer.Caption = AppServices.Current.Library!.ShipName(shipId);
+        layer.Caption = library.ShipName(shipId);
 
-        if (composer.SecretaryEntry(shipId, _damaged) is { } entry)
+        if (composer.SecretaryEntry(shipId, _art) is { } entry)
         {
             await WithFetchAsync([entry]);
+
+            // only some ships have special-remodel art; the 404 is remembered, so the choice disappears for them
+            if (_art == RoomComposer.SpecialArt && library.IsMissing(entry))
+            {
+                AppServices.Current.Notify("No special-remodel art", $"{layer.Caption} has no special-remodel art, so the current CG is shown.");
+                _art = RoomComposer.CurrentArt;
+                Raise(nameof(Art));
+                if (composer.SecretaryEntry(shipId, _art) is { } current)
+                {
+                    await WithFetchAsync([current]);
+                }
+            }
         }
 
-        var sprite = composer.Secretary(shipId, _damaged, _leftOfCentre);
-        layer.Sprites = await LoadSpritesAsync(sprite is null ? [] : [sprite]);
+        // a later pick has taken over while this one was downloading
+        if (version != _secretaryVersion)
+        {
+            return;
+        }
+
+        ReloadArts(composer, shipId);
+        var sprite = composer.Secretary(shipId, _art, _leftOfCentre);
+        var sprites = await LoadSpritesAsync(sprite is null ? [] : [sprite]);
+        if (version == _secretaryVersion)
+        {
+            layer.Sprites = sprites;
+        }
+    }
+
+    private void ReloadArts(RoomComposer composer, int shipId)
+    {
+        var arts = composer.SecretaryArts(shipId);
+        if (arts.All(a => a.Key != _art))
+        {
+            _art = RoomComposer.CurrentArt;
+            Raise(nameof(Art));
+        }
+
+        if (!arts.SequenceEqual(Arts))
+        {
+            Arts.Clear();
+            foreach (var art in arts)
+            {
+                Arts.Add(art);
+            }
+
+            // refilling cleared the list's selection
+            Raise(nameof(Art));
+        }
+    }
+
+    private async Task RefreshPortUiAsync()
+    {
+        var library = AppServices.Current.Library;
+        var layer = Layer("PortUi");
+        if (library is null)
+        {
+            return;
+        }
+
+        var version = ++_portUiVersion;
+        var ui = new PortUi(library);
+        var fonts = new GameFonts(library);
+        var first = !GameText.HasGameFont;
+        await WithFetchAsync([.. ui.Entries(PortUi.Skin), .. fonts.Entries()]);
+        if (first)
+        {
+            GameText.Load(fonts);
+        }
+
+        var now = DateTime.Now;
+        _shownTime = now.ToString("HH:mm");
+        var (sprites, texts) = ui.Compose(PortUi.Skin, PortUi.Values, now);
+        var images = await LoadSpritesAsync(sprites);
+        if (version != _portUiVersion)
+        {
+            return;
+        }
+
+        layer.Caption = PortUi.Skin switch
+        {
+            PortSkin.Classic => "Skin 1, classic",
+            PortSkin.Skin1 => "Skin 1",
+            PortSkin.Skin2 => "Skin 2",
+            PortSkin.Skin3 => "Skin 3",
+            _ => "Skin 3 改",
+        };
+        layer.Sprites = [.. images, .. texts.Select(GameText.Render).OfType<SpriteImage>()];
     }
 
     private async Task RefreshOutsideAsync()
@@ -521,16 +647,17 @@ public sealed class RoomViewModel : Observable
         }
 
         // atlas pngs carry no dpi to trust, so sizes are taken in pixels
-        return new SpriteImage(image, sprite.X, sprite.Y, image.PixelWidth, image.PixelHeight);
+        return new SpriteImage(image, sprite.X, sprite.Y, image.PixelWidth * sprite.Scale, image.PixelHeight * sprite.Scale,
+            sprite.Opacity);
     }
 
     private async Task ApplyPresetAsync(RoomPreset preset)
     {
         _time = preset.Time;
         Raise(nameof(Time));
-        _damaged = preset.Damaged;
+        _art = preset.SecretaryArt ?? (preset.Damaged ? RoomComposer.DamagedArt : RoomComposer.CurrentArt);
         _leftOfCentre = preset.LeftOfCentre;
-        Raise(nameof(Damaged));
+        Raise(nameof(Art));
         Raise(nameof(LeftOfCentre));
 
         foreach (var layer in Layers)
@@ -553,6 +680,9 @@ public sealed class RoomViewModel : Observable
 
         await RefreshOutsideAsync();
         await SetSecretaryAsync(preset.SecretaryId);
+
+        // applying redraws the interface through its Changed event
+        PortUi.Apply(preset.PortUi);
     }
 
     private RoomPreset Current(string name) => new()
@@ -560,8 +690,10 @@ public sealed class RoomViewModel : Observable
         Name = name,
         Furniture = new Dictionary<FurnitureSlot, int>(_furniture),
         SecretaryId = _secretaryId,
-        Damaged = _damaged,
+        Damaged = _art == RoomComposer.DamagedArt,
+        SecretaryArt = _art,
         LeftOfCentre = _leftOfCentre,
+        PortUi = PortUi.Settings,
         Time = _time,
         Layers = Layers.Where(l => l.IsMoved || !l.Visible || l.Opacity < 1).ToDictionary(l => l.Key, l => l.Tweak),
     };
@@ -594,6 +726,8 @@ public sealed class RoomViewModel : Observable
             SecretaryId = _ships.Count == 0 ? 0 : _ships[random.Next(_ships.Count)].Id,
             Time = (TimeOfDay)random.Next(1, 6),
             LeftOfCentre = _leftOfCentre,
+            PortUi = PortUi.Settings,
+            Layers = Layers.Where(l => !l.Visible).ToDictionary(l => l.Key, _ => new LayerTweak { Hidden = true }),
         };
         await ApplyPresetAsync(preset);
     }
@@ -621,8 +755,10 @@ public sealed class RoomViewModel : Observable
                 context.PushOpacity(layer.Opacity);
                 foreach (var sprite in layer.Sprites)
                 {
+                    context.PushOpacity(sprite.Opacity);
                     context.DrawImage(sprite.Image,
                         new Rect(sprite.X + layer.OffsetX, sprite.Y + layer.OffsetY, sprite.Width, sprite.Height));
+                    context.Pop();
                 }
 
                 context.Pop();

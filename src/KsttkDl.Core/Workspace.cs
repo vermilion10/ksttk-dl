@@ -16,6 +16,9 @@ public sealed class Workspace(string dataDirectory, string outputDirectory)
 
     public string RawRoot { get; } = Path.Combine(outputDirectory, "raw");
 
+    /// <summary>older copies of ship CGs that a newer version replaced, laid out like the raw mirror.</summary>
+    public string HistoryRoot { get; } = Path.Combine(outputDirectory, "history");
+
     /// <summary> Resolves a world number or explicit hostname against servers.json. An unknown hostname passes through with empty metadata rather than being rejected, in case a new world appears before the translation data catches up.  </summary>
     public WorldServer ResolveServer(Translations translations, int? world, string? host)
     {
@@ -72,6 +75,7 @@ public sealed class Workspace(string dataDirectory, string outputDirectory)
 
         var start2 = Data.LoadStart2();
         var translations = Data.LoadTranslations();
+        ShipGraphHistory.Load(Data).Remember(start2);
         StaticAssets.Load(Data);
 
         var catalog = new CatalogBuilder(start2, translations, versions, includeRare).Build(categories);

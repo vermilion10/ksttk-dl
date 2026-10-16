@@ -83,7 +83,7 @@ public sealed class GameLibrary
         }
 
         Directory.CreateDirectory(Workspace.RawRoot);
-        var downloader = new Downloader(new DownloadOptions(host, Workspace.RawRoot, concurrency), _index, log);
+        var downloader = new Downloader(new DownloadOptions(host, Workspace.RawRoot, concurrency, HistoryRoot: Workspace.HistoryRoot), _index, log);
         var stats = await downloader.RunAsync(pending, progress, cancellationToken);
         return stats with { Skipped = stats.Skipped + entries.Count - pending.Count };
     }

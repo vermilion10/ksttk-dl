@@ -172,7 +172,8 @@
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate DataType="{x:Type vm:SpriteImage}">
                                                         <Image Source="{Binding Image}" Width="{Binding Width}" Height="{Binding Height}"
-                                                               Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality" />
+                                                               Opacity="{Binding Opacity}" Stretch="Fill"
+                                                               RenderOptions.BitmapScalingMode="HighQuality" />
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
@@ -245,8 +246,23 @@
                                            Visibility="{Binding Text, ElementName=ShipSearch, Converter={StaticResource Presence}, ConverterParameter=invert}" />
                             </Grid>
                             <StackPanel Grid.Row="1" Margin="0,10,0,10">
-                                <CheckBox IsChecked="{Binding Damaged}" Content="Damaged (中破)" Margin="0,0,0,6" />
-                                <CheckBox IsChecked="{Binding LeftOfCentre}" Content="Stand left of centre" />
+                                <TextBlock Text="CG" Style="{StaticResource Text.Label}" Margin="2,0,0,4" />
+                                <ListBox ItemsSource="{Binding Arts}" SelectedValuePath="Key" SelectedValue="{Binding Art}"
+                                         MaxHeight="150" AutomationProperties.Name="Secretary CG">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                                            <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
+                                            <Setter Property="ToolTip" Value="{Binding Note}" />
+                                            <Setter Property="Padding" Value="8,4" />
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type room:SecretaryArt}">
+                                            <TextBlock Text="{Binding Label}" FontSize="12" />
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <CheckBox IsChecked="{Binding LeftOfCentre}" Content="Stand left of centre" Margin="0,8,0,0" />
                             </StackPanel>
                             <ItemsControl Grid.Row="2" Style="{StaticResource GalleryList}" ItemsSource="{Binding ShipGallery.Rows}">
                                 <ItemsControl.ItemTemplate>
@@ -281,6 +297,126 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </Grid>
+
+                        <!-- the port interface -->
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                      DataContext="{Binding PortUi}"
+                                      Visibility="{Binding DataContext.PickerMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource Match}, ConverterParameter=PortUi}">
+                            <StackPanel Margin="0,0,6,0">
+                                <TextBlock Text="SKIN" Style="{StaticResource Text.Label}" Margin="2,0,0,4" />
+                                <WrapPanel Margin="0,0,0,8">
+                                    <RadioButton Style="{StaticResource RadioChip}" Content="1" GroupName="Skin" ToolTip="Skin 1"
+                                                 IsChecked="{Binding Skin, Converter={StaticResource Equals}, ConverterParameter=Skin1}" />
+                                    <RadioButton Style="{StaticResource RadioChip}" Content="1 classic" GroupName="Skin"
+                                                 ToolTip="Skin 1 with the fleet count, as the port first looked"
+                                                 IsChecked="{Binding Skin, Converter={StaticResource Equals}, ConverterParameter=Classic}" />
+                                    <RadioButton Style="{StaticResource RadioChip}" Content="2" GroupName="Skin" ToolTip="Skin 2"
+                                                 IsChecked="{Binding Skin, Converter={StaticResource Equals}, ConverterParameter=Skin2}" />
+                                    <RadioButton Style="{StaticResource RadioChip}" Content="3" GroupName="Skin" ToolTip="Skin 3"
+                                                 IsChecked="{Binding Skin, Converter={StaticResource Equals}, ConverterParameter=Skin3}" />
+                                    <RadioButton Style="{StaticResource RadioChip}" Content="3 改" GroupName="Skin" ToolTip="Skin 3 改"
+                                                 IsChecked="{Binding Skin, Converter={StaticResource Equals}, ConverterParameter=Skin3Kai}" />
+                                </WrapPanel>
+
+                                <TextBlock Text="ADMIRAL" Style="{StaticResource Text.Label}" Margin="2,4,0,4" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="Name" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" />
+                                    <TextBox Grid.Column="1" Margin="0,0,0,6" AutomationProperties.Name="Admiral name"
+                                             Text="{Binding Name, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
+                                    <TextBlock Grid.Row="1" Text="HQ level" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" />
+                                    <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,6" AutomationProperties.Name="HQ level"
+                                             Text="{Binding Level, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
+                                    <TextBlock Grid.Row="2" Text="Rank" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" />
+                                    <ComboBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,6" AutomationProperties.Name="Rank"
+                                              ItemsSource="{Binding Ranks}" SelectedItem="{Binding Rank}" />
+                                    <TextBlock Grid.Row="3" Text="Fleets" Style="{StaticResource Text.Caption}" VerticalAlignment="Center"
+                                               Visibility="{Binding HasFleets, Converter={StaticResource BoolToVisibility}}" />
+                                    <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,6" AutomationProperties.Name="Fleets"
+                                             Visibility="{Binding HasFleets, Converter={StaticResource BoolToVisibility}}"
+                                             Text="{Binding Fleets, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
+                                    <TextBlock Grid.Row="4" Text="Ships / max" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" />
+                                    <UniformGrid Grid.Row="4" Grid.Column="1" Columns="2" Margin="0,0,0,6">
+                                        <TextBox Margin="0,0,4,0" AutomationProperties.Name="Ships"
+                                                 Text="{Binding Ships, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
+                                        <TextBox Margin="4,0,0,0" AutomationProperties.Name="Ship capacity"
+                                                 Text="{Binding ShipMax, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
+                                    </UniformGrid>
+                                    <TextBlock Grid.Row="5" Text="Equipment / max" Style="{StaticResource Text.Caption}" VerticalAlignment="Center"
+                                               Visibility="{Binding HasScrews, Converter={StaticResource BoolToVisibility}}" />
+                                    <UniformGrid Grid.Row="5" Grid.Column="1" Columns="2" Margin="0,0,0,6"
+                                                 Visibility="{Binding HasScrews, Converter={StaticResource BoolToVisibility}}">
+                                        <TextBox Margin="0,0,4,0" AutomationProperties.Name="Equipment"
+                                                 Text="{Binding Equipment, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
+                                        <TextBox Margin="4,0,0,0" AutomationProperties.Name="Equipment capacity"
+                                                 Text="{Binding EquipmentMax, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
+                                    </UniformGrid>
+                                </Grid>
+
+                                <TextBlock Text="RESOURCES" Style="{StaticResource Text.Label}" Margin="2,6,0,4" />
+                                <UniformGrid Columns="2">
+                                    <StackPanel Margin="0,0,4,6">
+                                        <TextBlock Text="Fuel 燃料" Style="{StaticResource Text.Caption}" />
+                                        <TextBox AutomationProperties.Name="Fuel" Text="{Binding Fuel, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
+                                    </StackPanel>
+                                    <StackPanel Margin="4,0,0,6">
+                                        <TextBlock Text="Ammo 弾薬" Style="{StaticResource Text.Caption}" />
+                                        <TextBox AutomationProperties.Name="Ammo" Text="{Binding Ammo, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
+                                    </StackPanel>
+                                    <StackPanel Margin="0,0,4,6">
+                                        <TextBlock Text="Steel 鋼材" Style="{StaticResource Text.Caption}" />
+                                        <TextBox AutomationProperties.Name="Steel" Text="{Binding Steel, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
+                                    </StackPanel>
+                                    <StackPanel Margin="4,0,0,6">
+                                        <TextBlock Text="Bauxite ボーキ" Style="{StaticResource Text.Caption}" />
+                                        <TextBox AutomationProperties.Name="Bauxite" Text="{Binding Bauxite, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
+                                    </StackPanel>
+                                    <StackPanel Margin="0,0,4,6">
+                                        <TextBlock Text="Buckets 高速修復材" Style="{StaticResource Text.Caption}" />
+                                        <TextBox AutomationProperties.Name="Buckets" Text="{Binding Buckets, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
+                                    </StackPanel>
+                                    <StackPanel Margin="4,0,0,6">
+                                        <TextBlock Text="Dev. mats 開発資材" Style="{StaticResource Text.Caption}" />
+                                        <TextBox AutomationProperties.Name="Development materials"
+                                                 Text="{Binding DevMaterials, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
+                                    </StackPanel>
+                                    <StackPanel Margin="0,0,4,6" Visibility="{Binding HasScrews, Converter={StaticResource BoolToVisibility}}">
+                                        <TextBlock Text="Screws 改修資材" Style="{StaticResource Text.Caption}" />
+                                        <TextBox AutomationProperties.Name="Improvement materials"
+                                                 Text="{Binding Screws, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
+                                    </StackPanel>
+                                </UniformGrid>
+
+                                <TextBlock Text="CLOCK" Style="{StaticResource Text.Label}" Margin="2,6,0,4" />
+                                <CheckBox IsChecked="{Binding ShowClock}" Content="Show the clock" Margin="0,0,0,6" />
+                                <CheckBox IsChecked="{Binding LiveClock}" Content="Follow this computer's time" Margin="0,0,0,6" />
+                                <UniformGrid Columns="2" IsEnabled="{Binding LiveClock, Converter={StaticResource Equals}, ConverterParameter=False}">
+                                    <StackPanel Margin="0,0,4,6">
+                                        <TextBlock Text="Date (MM/DD)" Style="{StaticResource Text.Caption}" />
+                                        <TextBox AutomationProperties.Name="Clock date" Text="{Binding Date, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
+                                    </StackPanel>
+                                    <StackPanel Margin="4,0,0,6">
+                                        <TextBlock Text="Time (HH:MM)" Style="{StaticResource Text.Caption}" />
+                                        <TextBox AutomationProperties.Name="Clock time" Text="{Binding Time, UpdateSourceTrigger=PropertyChanged, Delay=250}" />
+                                    </StackPanel>
+                                </UniformGrid>
+
+                                <CheckBox IsChecked="{Binding FriendFleetEvent}" Content="Friend fleet event button" Margin="0,6,0,8" />
+                                <TextBlock Style="{StaticResource Text.Caption}" FontSize="11" TextWrapping="Wrap"
+                                           Text="Text is set in the game's font, A-OTF UD Shin Go Pro, which downloads with the interface sheets." />
+                            </StackPanel>
+                        </ScrollViewer>
 
                         <!-- the view outside -->
                         <StackPanel Grid.Row="1" Visibility="{Binding PickerMode, Converter={StaticResource Match}, ConverterParameter=Outside}">

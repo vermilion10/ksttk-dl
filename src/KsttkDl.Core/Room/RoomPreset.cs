@@ -27,12 +27,26 @@ public sealed record RoomPreset
 
     public bool Damaged { get; init; }
 
+    /// <summary>which picture the secretary uses (a SecretaryArt key); rooms saved before it existed follow Damaged.</summary>
+    public string? SecretaryArt { get; init; }
+
+    /// <summary>the port interface over the room, or null to leave it off.</summary>
+    public PortUiSettings? PortUi { get; init; }
+
     public bool LeftOfCentre { get; init; }
 
     public TimeOfDay Time { get; init; } = TimeOfDay.Day;
 
     /// <summary>edits keyed by layer name (the slot names, "Outside" and "Secretary").</summary>
     public Dictionary<string, LayerTweak> Layers { get; init; } = [];
+}
+
+/// <summary>the port interface's skin and what its header and clock say.</summary>
+public sealed record PortUiSettings
+{
+    public PortSkin Skin { get; init; } = PortSkin.Skin1;
+
+    public PortUiValues Values { get; init; } = new();
 }
 
 /// <summary>saved rooms, kept as one json file.</summary>

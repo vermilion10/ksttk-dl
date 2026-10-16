@@ -19,10 +19,37 @@ public static class DataRefresher
         foreach (var source in DataStore.Sources)
         {
             log($"  {source.FileName} <- {source.Description}");
+            var isStart2 = source.FileName == DataStore.Start2File;
+            if (isStart2)
+            {
+                RememberOffsets(store);
+            }
+
             results.Add(await FetchAsync(store, source, cancellationToken));
+            if (isStart2)
+            {
+                RememberOffsets(store);
+            }
         }
 
         return results;
+    }
+
+    // seasonal CGs swap a ship's offsets in place; noting them on both sides of a refresh keeps the old ones usable
+    private static void RememberOffsets(DataStore store)
+    {
+        if (!File.Exists(store.PathFor(DataStore.Start2File)))
+        {
+            return;
+        }
+
+        try
+        {
+            ShipGraphHistory.Load(store).Remember(store.LoadStart2());
+        }
+        catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException)
+        {
+        }
     }
 
     private static async Task<RefreshResult> FetchAsync(

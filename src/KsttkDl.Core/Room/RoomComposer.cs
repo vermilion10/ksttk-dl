@@ -1,6 +1,8 @@
 using System.Text.Json;
 using KsttkDl.Core.Catalog;
 using KsttkDl.Core.Fetch;
+using KsttkDl.Core.MasterData;
+using KsttkDl.Core.Naming;
 
 namespace KsttkDl.Core.Room;
 
@@ -27,11 +29,23 @@ public enum TimeOfDay
 
 /// <summary>
 /// one picture to draw: a file, the part of it to use (null for the whole file, otherwise an atlas frame),
-/// and where its top-left corner lands on the 1200×720 room.
+/// and where its top-left corner lands on the 1200×720 room. <see cref="Scale"/> sizes the picture, as for the
+/// double-size special-remodel art drawn at half size
 /// </summary>
-public sealed record RoomSprite(string Path, SpriteRect? Source, int X, int Y);
+public sealed record RoomSprite(string Path, SpriteRect? Source, int X, int Y)
+{
+    public double Scale { get; init; } = 1;
+
+    public double Opacity { get; init; } = 1;
+}
 
 public readonly record struct SpriteRect(int X, int Y, int Width, int Height);
+
+/// <summary>
+/// one picture a secretary can be drawn with. <paramref name="Key"/> is "full", "full_dmg", "sp" (the
+/// special-remodel art) or "history:{type}:{version}" for a copy kept when a newer CG replaced it
+/// </summary>
+public sealed record SecretaryArt(string Key, string Label, string Note);
 
 /// <summary>
 /// lays out the port room the way the game client does. each slot has a fixed anchor (floor and desk sit on
@@ -62,8 +76,80 @@ public sealed class RoomComposer(GameLibrary library)
     public AssetEntry? OutsideEntry(int outsideId, TimeOfDay time) =>
         library.EntriesFor("furniture-outside", outsideId).FirstOrDefault(e => e.SecondaryId == (int)time);
 
-    public AssetEntry? SecretaryEntry(int shipId, bool damaged) =>
-        library.Find("ship", shipId, damaged ? "full_dmg" : "full") ?? library.Find("ship", shipId, "full");
+    public const string CurrentArt = "full";
+    public const string DamagedArt = "full_dmg";
+    public const string SpecialArt = "sp";
+    private const string SpecialType = "sp_remodel/full_x2";
+
+    /// <summary>
+    /// the pictures a ship can stand in the room with: its current CG (seasonal art while a season runs, since
+    /// the game swaps the file in place), the damaged one, the special-remodel art, which keeps the original
+    /// art at twice the size, and any earlier CGs kept in the history folder
+    /// </summary>
+    public IReadOnlyList<SecretaryArt> SecretaryArts(int shipId)
+    {
+        var arts = new List<SecretaryArt>
+        {
+            new(CurrentArt, "Current CG", "What the port shows now, seasonal art included"),
+            new(DamagedArt, "Damaged (中破)", "The current CG, damaged"),
+        };
+
+        if (!library.IsMissing(SpecialEntry(shipId)))
+        {
+            arts.Add(new(SpecialArt, "Special-remodel art",
+                "The ship's own art from the special-remodel animation, drawn at half size. Only some ships have it"));
+        }
+
+        foreach (var (type, version, _) in HistoryFiles(shipId))
+        {
+            arts.Add(new($"history:{type}:{version}",
+                type == DamagedArt ? $"Earlier CG, damaged (v{version})" : $"Earlier CG (v{version})",
+                "A copy kept when a newer CG replaced it"));
+        }
+
+        return arts;
+    }
+
+    /// <summary>the file a secretary picture needs; null for history copies, which are already on disk.</summary>
+    public AssetEntry? SecretaryEntry(int shipId, string art) => art switch
+    {
+        SpecialArt => SpecialEntry(shipId),
+        DamagedArt => library.Find("ship", shipId, "full_dmg") ?? library.Find("ship", shipId, "full"),
+        _ when art.StartsWith("history:", StringComparison.Ordinal) => null,
+        _ => library.Find("ship", shipId, "full"),
+    };
+
+    private AssetEntry SpecialEntry(int shipId) =>
+        library.Find("ship", shipId, SpecialType) ?? new AssetEntry
+        {
+            Path = AssetPath.GetPath(shipId, "ship", SpecialType, "png"),
+            Category = AssetCategory.Ships,
+            Group = "ship",
+            EntityId = shipId,
+            AssetType = SpecialType,
+        };
+
+    /// <summary>kept copies of a ship's CGs: (full or full_dmg, version, path), newest first.</summary>
+    private IEnumerable<(string Type, string Version, string Path)> HistoryFiles(int shipId)
+    {
+        foreach (var type in new[] { CurrentArt, DamagedArt })
+        {
+            var folder = Path.Combine(library.Workspace.HistoryRoot, "kcs2", "resources", "ship", type);
+            if (!Directory.Exists(folder))
+            {
+                continue;
+            }
+
+            // name.v51.png: the version is the inner extension
+            var found = Directory.EnumerateFiles(folder, $"{shipId:D4}_*.v*.png")
+                .Select(path => (Type: type, Version: Path.GetExtension(Path.GetFileNameWithoutExtension(path)).TrimStart('.', 'v'), Path: path))
+                .OrderByDescending(f => int.TryParse(f.Version, out var v) ? v : 0);
+            foreach (var file in found)
+            {
+                yield return file;
+            }
+        }
+    }
 
     public static TimeOfDay TimeAt(int hour) => hour switch
     {
@@ -110,17 +196,49 @@ public sealed class RoomComposer(GameLibrary library)
     /// the secretary's full CG. <paramref name="leftOfCentre"/> is the port's alternative flagship position,
     /// which shifts most ships 200 px left
     /// </summary>
-    public RoomSprite? Secretary(int shipId, bool damaged, bool leftOfCentre)
+    public RoomSprite? Secretary(int shipId, string art, bool leftOfCentre)
     {
         var graph = library.Start2.ShipGraphs.FirstOrDefault(g => g.Id == shipId);
-        if (graph is null || SecretaryEntry(shipId, damaged) is not { } entry || library.LocalPath(entry) is not { } path)
+        if (graph is null)
         {
             return null;
         }
 
-        var offset = (damaged ? graph.BokoD : graph.BokoN) ?? graph.BokoN ?? [0, 0];
+        string? path;
+        int[]? offset;
+        var scale = 1.0;
+        if (art.StartsWith("history:", StringComparison.Ordinal))
+        {
+            // placed with the offsets that were current alongside that version, when they were recorded
+            var parts = art.Split(':');
+            var kept = HistoryFiles(shipId)
+                .FirstOrDefault(f => f.Type == parts.ElementAtOrDefault(1) && f.Version == parts.ElementAtOrDefault(2));
+            path = kept.Path;
+            var recorded = kept.Version is null ? null : ShipGraphHistory.Load(library.Workspace.Data).Get(shipId, kept.Version);
+            offset = kept.Type == DamagedArt
+                ? recorded?.Damaged ?? recorded?.Normal ?? graph.BokoD ?? graph.BokoN
+                : recorded?.Normal ?? graph.BokoN;
+        }
+        else
+        {
+            path = SecretaryEntry(shipId, art) is { } entry ? library.LocalPath(entry) : null;
+            offset = art == DamagedArt ? graph.BokoD ?? graph.BokoN : graph.BokoN;
+
+            // twice the full CG's size on the same canvas, so at half size it lands where the CG would
+            if (art == SpecialArt)
+            {
+                scale = 0.5;
+            }
+        }
+
+        if (path is null)
+        {
+            return null;
+        }
+
+        offset ??= [0, 0];
         var shift = leftOfCentre ? (ShortMoveShips.Contains(shipId) ? -150 : -200) : 0;
-        return new RoomSprite(path, null, SecretaryX + offset[0] + shift, SecretaryY + offset[1]);
+        return new RoomSprite(path, null, SecretaryX + offset[0] + shift, SecretaryY + offset[1]) { Scale = scale };
     }
 
     public static (int X, int Y) Anchor(FurnitureSlot slot, int width, int height) => slot switch

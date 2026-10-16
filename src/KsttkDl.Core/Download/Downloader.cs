@@ -8,7 +8,8 @@ public sealed record DownloadOptions(
     string RawRoot,
     int Concurrency = 6,
     bool RetryMissing = false,
-    bool DryRun = false);
+    bool DryRun = false,
+    string? HistoryRoot = null);
 
 public sealed record DownloadStats
 {
@@ -160,6 +161,41 @@ public sealed class Downloader(DownloadOptions options, DownloadIndex index, Act
 
     private const int BodyAttempts = 3;
 
+    /// <summary>
+    /// a seasonal CG overwrites a ship's art at the same path, so the copy being replaced moves to the history
+    /// folder as <c>name.v{version}.png</c> instead of being lost
+    /// </summary>
+    private void KeepReplaced(AssetEntry entry, string destination)
+    {
+        if (options.HistoryRoot is null
+            || entry.Category != AssetCategory.Ships
+            || entry.AssetType is not ("full" or "full_dmg")
+            || !index.TryGet(entry.Path, out var record)
+            || record.Missing
+            || record.Version == entry.VersionQuery
+            || !File.Exists(destination))
+        {
+            return;
+        }
+
+        var target = Path.Combine(options.HistoryRoot, entry.Path.Replace('/', Path.DirectorySeparatorChar));
+        target = Path.Combine(Path.GetDirectoryName(target)!,
+            $"{Path.GetFileNameWithoutExtension(target)}.v{VersionNumber(record.Version)}{Path.GetExtension(target)}");
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(destination, target, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            log($"  could not keep the old {entry.Path}: {ex.Message}");
+        }
+    }
+
+    /// <summary>"?version=51" as "51"; no query is the first version.</summary>
+    public static string VersionNumber(string query) =>
+        query.StartsWith("?version=", StringComparison.Ordinal) ? query["?version=".Length..] : "1";
+
     private async Task<FetchResult> TransferAsync(AssetEntry entry, string destination, CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, entry.Url(options.Host));
@@ -190,6 +226,7 @@ public sealed class Downloader(DownloadOptions options, DownloadIndex index, Act
             size = target.Length;
         }
 
+        KeepReplaced(entry, destination);
         File.Move(temporary, destination, overwrite: true);
 
         index.Record(entry.Path, new IndexRecord

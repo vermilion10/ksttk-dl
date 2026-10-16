@@ -309,7 +309,7 @@ public static partial class Program
             var index = DownloadIndex.Load(workspace.RawRoot);
             var options = new DownloadOptions(
                 server.Host, workspace.RawRoot, parseResult.GetValue(concurrencyOption),
-                parseResult.GetValue(retryMissingOption), dryRun);
+                parseResult.GetValue(retryMissingOption), dryRun, workspace.HistoryRoot);
 
             var downloader = new Downloader(options, index, Console.WriteLine);
             var progress = new ConsoleProgress(entries.Count);
