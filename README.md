@@ -17,6 +17,12 @@ you open:
 - **装備 Equipment** and **家具 Furniture.** Galleries filtered by equipment
   category or room slot; each item page shows every picture it has.
 - **海域 Maps.** Every sortie map, its background fetched when selected.
+- **部屋 Room.** A port room builder. Choose a floor, wall, window, wall
+  object, chest and desk, the secretary ship and the time of day for the view
+  outside; each piece is placed exactly where the game client places it, and
+  animated furniture shows its first frame. Every layer can be hidden, faded
+  or dragged (arrow keys move it by 1 px, Shift by 10). Rooms can be saved,
+  loaded and randomized, and exported as a 1200×720 or 2400×1440 PNG.
 - **同期 Sync.** Game data refresh, world selection, a connection test that
   reports the address the CDN sees, whole-category downloads with progress,
   and *Organize output*, which produces the same named folders as `extract`.
@@ -35,7 +41,8 @@ dotnet build src/KsttkDl.App -c Release
 src/KsttkDl.App/bin/Release/net8.0-windows/ksttk-dl-app.exe
 ```
 
-Settings are kept in `%LOCALAPPDATA%\ksttk-dl\settings.json`. The default data and
+Settings are kept in `%LOCALAPPDATA%\ksttk-dl\settings.json` and saved rooms in
+`rooms.json` beside it. The default data and
 output folders are `Documents\ksttk-dl\data` and `Documents\ksttk-dl\output`.
 
 ## Asset discovery
@@ -231,6 +238,8 @@ quotes:
 - `src/KsttkDl.Core/Catalog`: asset enumeration
 - `src/KsttkDl.Core/Download`: HTTP client, retries, resumable index
 - `src/KsttkDl.Core/Fetch`: per-entity catalog lookups and single-item downloads
+- `src/KsttkDl.Core/Room`: port room layout (slot anchors, outside view,
+  secretary placement) and saved rooms
 - `src/KsttkDl.Core/Tunnel`: VPN Gate relay list, OpenVPN client and userspace
   TCP/IP stack behind `--jp`
 - `src/KsttkDl.Core/Extraction`: atlas unpacking and organized output

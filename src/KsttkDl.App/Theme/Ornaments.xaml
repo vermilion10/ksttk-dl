@@ -22,6 +22,10 @@
         <GradientStop Offset="0" Color="#7DBB5A" />
         <GradientStop Offset="1" Color="#2F5E22" />
     </RadialGradientBrush>
+    <RadialGradientBrush x:Key="Medal.Room" GradientOrigin="0.35,0.3">
+        <GradientStop Offset="0" Color="#D0645A" />
+        <GradientStop Offset="1" Color="#6A221C" />
+    </RadialGradientBrush>
     <RadialGradientBrush x:Key="Medal.Settings" GradientOrigin="0.35,0.3">
         <GradientStop Offset="0" Color="#98A0A3" />
         <GradientStop Offset="1" Color="#464C4F" />

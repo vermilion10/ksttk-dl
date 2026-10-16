@@ -41,3 +41,15 @@ public sealed class PresenceConverter : IValueConverter
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         Binding.DoNothing;
 }
+
+/// <summary>Visible when the bound value's text equals the parameter; switches the room builder's picker panels.</summary>
+public sealed class MatchConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        string.Equals(value?.ToString(), parameter?.ToString(), StringComparison.Ordinal)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        Binding.DoNothing;
+}

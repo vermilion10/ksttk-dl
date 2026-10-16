@@ -11,6 +11,7 @@ public enum Page
     Equipment,
     Furniture,
     Maps,
+    Room,
     Settings,
 }
 
@@ -72,6 +73,7 @@ public sealed class MainViewModel : Observable
             Page.Equipment => new EquipmentViewModel(),
             Page.Furniture => new FurnitureViewModel(),
             Page.Maps => new MapsViewModel(),
+            Page.Room => new RoomViewModel(),
             _ => new SettingsViewModel(),
         };
         _pages[page] = created;

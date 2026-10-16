@@ -2,13 +2,16 @@ using System.Text.Json;
 
 namespace KsttkDl.Core.MasterData;
 
+/// <summary><paramref name="BokoN"/> and <paramref name="BokoD"/> are the secretary's offset in the port room, normal and damaged.</summary>
 public sealed record ShipGraph(
     int Id,
     string FileName,
     string[] Version,
     int? SortNo,
     bool HasBattleN,
-    bool HasBokoD);
+    bool HasBokoD,
+    int[]? BokoN = null,
+    int[]? BokoD = null);
 
 /// <summary><paramref name="Rarity"/> is api_backs (card frame, 1-8) and <paramref name="SortNo"/> the library number; both are absent, and 0, on abyssal ships.</summary>
 public sealed record MstShip(
@@ -26,9 +29,10 @@ public sealed record MapBgm(int MapAreaId, int No, int MovingBgm, int[] BattleBg
 
 public sealed record Bgm(int Id, string Name);
 
-/// <summary><paramref name="Type"/> is the room slot: 0 floor, 1 wall, 2 window, 3 object, 4 chest, 5 desk.</summary>
+/// <summary><paramref name="Type"/> is the room slot: 0 floor, 1 wall, 2 window, 3 object, 4 chest, 5 desk. A window's <paramref name="OutsideId"/> picks the view behind it.</summary>
 public sealed record Furniture(
-    int Id, string Title, int ActiveFlag, string? Version, int Type = 0, int No = 0, int Rarity = 0, string Description = "");
+    int Id, string Title, int ActiveFlag, string? Version, int Type = 0, int No = 0, int Rarity = 0, string Description = "",
+    int OutsideId = 0);
 
 public sealed record UseItem(int Id, string Name);
 
@@ -103,7 +107,9 @@ public sealed class Start2
             : null,
         // Presence, not value: preload.js keys friendly/abyssal/seasonal off whether these coordinate pairs exist at all.
         e.TryGetProperty("api_battle_n", out _),
-        e.TryGetProperty("api_boko_d", out _));
+        e.TryGetProperty("api_boko_d", out _),
+        Ints(e, "api_boko_n") is { Length: >= 2 } bokoN ? bokoN : null,
+        Ints(e, "api_boko_d") is { Length: >= 2 } bokoD ? bokoD : null);
 
     private static MstShip ReadShip(JsonElement e) => new(
         Int(e, "api_id"),
@@ -151,7 +157,8 @@ public sealed class Start2
         Int(e, "api_type"),
         Int(e, "api_no"),
         Int(e, "api_rarity"),
-        Str(e, "api_description"));
+        Str(e, "api_description"),
+        Int(e, "api_outside_id"));
 
     private static int Int(JsonElement e, string name) =>
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : 0;

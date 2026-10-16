@@ -17,7 +17,6 @@
     </WindowChrome.WindowChrome>
 
     <Window.Resources>
-        <infra:EqualsConverter x:Key="Equals" />
         <DataTemplate DataType="{x:Type vm:SyncViewModel}">
             <views:SyncView />
         </DataTemplate>
@@ -32,6 +31,9 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:MapsViewModel}">
             <views:MapsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:RoomViewModel}">
+            <views:RoomView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
             <views:SettingsView />
@@ -104,6 +106,8 @@
                                      IsChecked="{Binding Page, Converter={StaticResource Equals}, ConverterParameter=Furniture}" />
                         <RadioButton Style="{StaticResource Medallion}" Content="海域" Tag="Maps" Background="{StaticResource Medal.Maps}" AutomationProperties.Name="Maps"
                                      IsChecked="{Binding Page, Converter={StaticResource Equals}, ConverterParameter=Maps}" />
+                        <RadioButton Style="{StaticResource Medallion}" Content="部屋" Tag="Room" Background="{StaticResource Medal.Room}" AutomationProperties.Name="Room"
+                                     IsChecked="{Binding Page, Converter={StaticResource Equals}, ConverterParameter=Room}" />
                         <Rectangle Height="1" Margin="22,4,22,18" Fill="{DynamicResource Brush.RailLine}" />
                         <RadioButton Style="{StaticResource Medallion}" Content="同期" Tag="Sync" Background="{StaticResource Medal.Sync}" AutomationProperties.Name="Sync"
                                      IsChecked="{Binding Page, Converter={StaticResource Equals}, ConverterParameter=Sync}" />

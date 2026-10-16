@@ -10,6 +10,14 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // a fault in one view is reported rather than taking the whole app down
+        DispatcherUnhandledException += (_, args) =>
+        {
+            AppServices.Current.AppendLog("Error: " + args.Exception);
+            AppServices.Current.Notify("Something went wrong", args.Exception.Message, ToastKind.Error);
+            args.Handled = true;
+        };
+
         var services = AppServices.Current;
         ThemeManager.Initialize(services.Settings.Theme);
         services.ApplyNetwork();
