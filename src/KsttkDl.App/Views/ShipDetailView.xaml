@@ -1,0 +1,126 @@
+<UserControl x:Class="KsttkDl.App.Views.ShipDetailView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:KsttkDl.App.ViewModels"
+             xmlns:c="clr-namespace:KsttkDl.App.Controls">
+    <Grid Background="{DynamicResource Brush.WindowBg}">
+        <Rectangle Fill="{DynamicResource Brush.Honeycomb}" />
+        <Grid Margin="20,16,24,20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="430" />
+            </Grid.ColumnDefinitions>
+
+            <!-- the art -->
+            <Grid Margin="0,0,20,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid>
+                    <Ellipse Width="460" Height="460" Fill="{DynamicResource Brush.TealWash}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Image c:ImageLoader.Path="{Binding Selected.ImagePath}" Stretch="Uniform" Margin="10"
+                           RenderOptions.BitmapScalingMode="HighQuality" />
+                    <ContentControl Style="{StaticResource Stamp}" Content="未" Width="56" Height="56"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Visibility="{Binding Selected.HasImage, Converter={StaticResource Presence}, ConverterParameter=invert}" />
+                </Grid>
+                <ListBox Grid.Row="1" Style="{StaticResource ThumbStrip}" ItemsSource="{Binding Images}"
+                         SelectedItem="{Binding Selected}" Height="136" Margin="0,10,0,0"
+                         AutomationProperties.Name="Pictures">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:ImageAsset}">
+                            <StackPanel Width="96">
+                                <Border Style="{StaticResource Placeholder}" Height="80">
+                                    <Image c:ImageLoader.DecodeWidth="120" c:ImageLoader.Path="{Binding ImagePath}" Stretch="Uniform" Margin="3" />
+                                </Border>
+                                <TextBlock Text="{Binding Title}" FontSize="11" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"
+                                           Foreground="{DynamicResource Brush.InkSoft}" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+
+            <!-- the record -->
+            <ContentControl Grid.Column="1" Style="{StaticResource Paper}" Padding="20,16">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <DockPanel>
+                        <Button Style="{StaticResource Button.Ghost}" Content="← 戻る Back" Command="{Binding Close}"
+                                DockPanel.Dock="Left" IsCancel="True" />
+                        <Border Background="{DynamicResource Brush.Panel}" BorderBrush="{Binding Tile.Frame}" BorderThickness="2"
+                                CornerRadius="3" Padding="8,2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Tile.Number}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Ink}" />
+                        </Border>
+                    </DockPanel>
+
+                    <StackPanel Grid.Row="1" Margin="0,16,0,0">
+                        <TextBlock Text="{Binding Japanese}" Style="{StaticResource Text.Title}" FontSize="30" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding Yomi}" Style="{StaticResource Text.Caption}" Margin="2,2,0,0" />
+                        <TextBlock Text="{Binding English}" Style="{StaticResource Text.Heading}" Margin="0,6,0,0"
+                                   Foreground="{DynamicResource Brush.TealText}" TextWrapping="Wrap" />
+                        <Rectangle Height="1" Fill="{DynamicResource Brush.GoldSoft}" Margin="0,12,0,10" />
+                        <TextBlock Text="{Binding Facts}" Style="{StaticResource Text.Caption}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Margin="0,14,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Open folder" Command="{Binding OpenFolder}" Margin="0,0,8,0" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="Download again" Command="{Binding FetchAll}"
+                                    ToolTip="Fetch any pictures or voices that are still missing" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding Status}" Style="{StaticResource Text.Caption}" Margin="0,8,0,0" />
+                    </StackPanel>
+
+                    <Grid Grid.Row="3" Margin="0,14,0,0" Visibility="{Binding HasVoices, Converter={StaticResource BoolToVisibility}}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="ボイス" Style="{StaticResource Text.Heading}" />
+                            <TextBlock Text="Voice lines" Style="{StaticResource Text.Caption}" Margin="8,0,0,2" VerticalAlignment="Bottom" />
+                        </StackPanel>
+                        <ListBox Grid.Row="1" ItemsSource="{Binding Voices}" Margin="-10,6,-10,0"
+                                 VirtualizingPanel.ScrollUnit="Pixel" AutomationProperties.Name="Voice lines">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:VoiceLine}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button Style="{StaticResource PlayButton}" VerticalAlignment="Top" CommandParameter="{Binding}"
+                                                Command="{Binding DataContext.Play, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                AutomationProperties.Name="{Binding Label, StringFormat=Play {0}}">
+                                            <Path x:Name="Glyph" Data="{StaticResource Geo.Play}" Fill="White" Margin="2,0,0,0" />
+                                        </Button>
+                                        <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                            <TextBlock Text="{Binding Label}" FontWeight="SemiBold" FontSize="12"
+                                                       Foreground="{DynamicResource Brush.TealText}" />
+                                            <TextBlock Text="{Binding Quote}" Style="{StaticResource Text.Body}" FontSize="12" Margin="0,2,0,0"
+                                                       Visibility="{Binding HasQuote, Converter={StaticResource BoolToVisibility}}" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding Playing}" Value="True">
+                                            <Setter TargetName="Glyph" Property="Data" Value="{StaticResource Geo.Stop}" />
+                                            <Setter TargetName="Glyph" Property="Margin" Value="0" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Grid>
+            </ContentControl>
+        </Grid>
+    </Grid>
+</UserControl>

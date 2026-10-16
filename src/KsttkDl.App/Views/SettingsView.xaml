@@ -1,0 +1,102 @@
+<UserControl x:Class="KsttkDl.App.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+        <StackPanel Margin="28,20,24,28" MaxWidth="760" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                <TextBlock Text="設定" Style="{StaticResource Text.Title}" />
+                <TextBlock Text="Settings" Style="{StaticResource Text.Heading}" Margin="12,0,0,3" VerticalAlignment="Bottom"
+                           Foreground="{DynamicResource Brush.InkSoft}" />
+            </StackPanel>
+
+            <ContentControl Style="{StaticResource Paper}">
+                <StackPanel>
+                    <TextBlock Text="CONNECTION" Style="{StaticResource Text.Label}" />
+                    <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,12"
+                               Text="The game's CDN only answers Japanese addresses. Pick how ksttk-dl gets there." />
+                    <RadioButton IsChecked="{Binding Direct}" GroupName="Network" AutomationProperties.Name="Direct">
+                        <StackPanel>
+                            <TextBlock Text="Direct" FontWeight="SemiBold" />
+                            <TextBlock Text="You are in Japan, or your own VPN is already on." Style="{StaticResource Text.Caption}" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton IsChecked="{Binding JpRelay}" GroupName="Network" AutomationProperties.Name="Built-in Japanese relay">
+                        <StackPanel>
+                            <TextBlock Text="Built-in Japanese relay" FontWeight="SemiBold" />
+                            <TextBlock Style="{StaticResource Text.Caption}"
+                                       Text="ksttk-dl connects to a volunteer VPN Gate relay by itself. Only ksttk-dl's own requests use it; no system VPN or admin rights." />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton IsChecked="{Binding Proxy}" GroupName="Network" AutomationProperties.Name="Proxy">
+                        <StackPanel>
+                            <TextBlock Text="Proxy" FontWeight="SemiBold" />
+                            <TextBlock Text="An HTTP or SOCKS proxy with a Japanese exit." Style="{StaticResource Text.Caption}" />
+                        </StackPanel>
+                    </RadioButton>
+                    <StackPanel Margin="26,0,0,0" Visibility="{Binding Proxy, Converter={StaticResource BoolToVisibility}}">
+                        <TextBox Text="{Binding ProxyUrl, UpdateSourceTrigger=PropertyChanged}" Width="360" HorizontalAlignment="Left"
+                                 AutomationProperties.Name="Proxy address" ToolTip="e.g. socks5://127.0.0.1:1080 or http://user:pass@host:8080" />
+                        <TextBlock Text="{Binding ProxyError}" Foreground="{DynamicResource Brush.Vermilion}" FontSize="12" Margin="0,4,0,0"
+                                   Visibility="{Binding ProxyError, Converter={StaticResource Presence}}" />
+                    </StackPanel>
+                    <Button Style="{StaticResource Button.Ghost}" Content="Forget saved relay" Command="{Binding ForgetRelay}"
+                            HorizontalAlignment="Left" Margin="0,8,0,0"
+                            Visibility="{Binding JpRelay, Converter={StaticResource BoolToVisibility}}" />
+                </StackPanel>
+            </ContentControl>
+
+            <ContentControl Style="{StaticResource Paper}" Margin="0,14,0,0">
+                <StackPanel>
+                    <TextBlock Text="FOLDERS" Style="{StaticResource Text.Label}" />
+                    <TextBlock Text="Game data" FontWeight="SemiBold" Margin="0,10,0,4" />
+                    <DockPanel>
+                        <Button Style="{StaticResource Button.Ghost}" Content="Browse…" Command="{Binding BrowseData}" DockPanel.Dock="Right"
+                                Margin="8,0,0,0" />
+                        <TextBox Text="{Binding DataFolder, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Game data folder" />
+                    </DockPanel>
+                    <TextBlock Text="Downloads and organized output" FontWeight="SemiBold" Margin="0,12,0,4" />
+                    <DockPanel>
+                        <Button Style="{StaticResource Button.Ghost}" Content="Browse…" Command="{Binding BrowseOutput}" DockPanel.Dock="Right"
+                                Margin="8,0,0,0" />
+                        <TextBox Text="{Binding OutputFolder, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Output folder" />
+                    </DockPanel>
+                    <TextBlock Style="{StaticResource Text.Caption}" Margin="0,6,0,0"
+                               Text="The same folders the command-line tool uses with --data and --output, so both can share a download." />
+                </StackPanel>
+            </ContentControl>
+
+            <ContentControl Style="{StaticResource Paper}" Margin="0,14,0,0">
+                <StackPanel>
+                    <TextBlock Text="DOWNLOADS" Style="{StaticResource Text.Label}" />
+                    <CheckBox IsChecked="{Binding IncludeRare}" Margin="0,10,0,0" AutomationProperties.Name="Include rare variants">
+                        <StackPanel>
+                            <TextBlock Text="Include rare variants" />
+                            <TextBlock Text="Seasonal extras, sp. remodel art and similar files that rarely exist." Style="{StaticResource Text.Caption}" />
+                        </StackPanel>
+                    </CheckBox>
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                        <TextBlock Text="Simultaneous downloads" VerticalAlignment="Center" />
+                        <TextBox Text="{Binding Concurrency, UpdateSourceTrigger=LostFocus}" Width="60" Margin="12,0,0,0"
+                                 AutomationProperties.Name="Simultaneous downloads" />
+                    </StackPanel>
+                </StackPanel>
+            </ContentControl>
+
+            <ContentControl Style="{StaticResource Paper}" Margin="0,14,0,0">
+                <StackPanel>
+                    <TextBlock Text="APPEARANCE" Style="{StaticResource Text.Label}" />
+                    <WrapPanel Margin="0,10,0,0">
+                        <RadioButton Style="{StaticResource RadioChip}" Content="Follow Windows" IsChecked="{Binding ThemeSystem}" GroupName="Theme" />
+                        <RadioButton Style="{StaticResource RadioChip}" Content="昼 Day" IsChecked="{Binding ThemeLight}" GroupName="Theme" />
+                        <RadioButton Style="{StaticResource RadioChip}" Content="夜 Night" IsChecked="{Binding ThemeDark}" GroupName="Theme" />
+                    </WrapPanel>
+                </StackPanel>
+            </ContentControl>
+
+            <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
+                <Button Style="{StaticResource Button.Primary}" Content="Save" Command="{Binding Save}" Margin="0,0,8,0" IsDefault="True" />
+                <Button Style="{StaticResource Button.Ghost}" Content="Discard changes" Command="{Binding Discard}" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

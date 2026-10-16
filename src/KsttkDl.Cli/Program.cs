@@ -9,7 +9,7 @@ using KsttkDl.Core.Tunnel;
 namespace KsttkDl.Cli;
 
 /// <summary> targets System.CommandLine 3.0.0-preview.7, whose API differs from the 2.0.0-betas: SetAction over SetHandler, Options.Add over a collection initializer, and  Parse(args).InvokeAsync() rather than InvokeAsync on the command </summary>
-public static class Program
+public static partial class Program
 {
     public static async Task<int> Main(string[] args)
     {
@@ -57,6 +57,7 @@ public static class Program
         root.Subcommands.Add(BuildWorldsCommand(dataOption));
         root.Subcommands.Add(BuildDownloadCommand(dataOption, outputOption));
         root.Subcommands.Add(BuildExtractCommand(dataOption, outputOption));
+        root.Subcommands.Add(BuildGetCommand(dataOption, outputOption));
         root.Subcommands.Add(relayCommand);
 
         var parseResult = root.Parse(args);

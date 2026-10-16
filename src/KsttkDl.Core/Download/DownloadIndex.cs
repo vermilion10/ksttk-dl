@@ -35,6 +35,7 @@ public sealed class DownloadIndex
     private readonly ConcurrentDictionary<string, IndexRecord> _records;
     private readonly string _path;
     private int _dirtyCount;
+    private readonly object _saveLock = new();
 
     private DownloadIndex(string path, ConcurrentDictionary<string, IndexRecord> records)
     {
@@ -96,6 +97,15 @@ public sealed class DownloadIndex
     }
 
     public void Save()
+    {
+        // the app runs several small downloads at once, and each one saves when it finishes
+        lock (_saveLock)
+        {
+            SaveLocked();
+        }
+    }
+
+    private void SaveLocked()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
 

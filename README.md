@@ -1,8 +1,42 @@
 # ksttk-dl
 
-Asset downloader and extractor for a certain browser game. Fan-made, not affiliated with the game's
+Asset downloader and extractor for a certain browser game, as a desktop app for browsing and a
+command-line tool for bulk downloads. Fan-made, not affiliated with the game's
 developers or publishers. Use for research and personal archival in accordance with the game's
 ToS.
+
+## Desktop app
+
+The Windows app (`ksttk-dl-app`) browses the game's assets and downloads only what
+you open:
+
+- **Ships.** The ship library as cards in their rarity frames, with filters
+  by ship type, search by English name, reading or id, and an abyssal view.
+  Opening a ship fetches its CGs, cards and banners and every voice line, with
+  the English quote beside each line and playback built in.
+- **装備 Equipment** and **家具 Furniture.** Galleries filtered by equipment
+  category or room slot; each item page shows every picture it has.
+- **海域 Maps.** Every sortie map, its background fetched when selected.
+- **同期 Sync.** Game data refresh, world selection, a connection test that
+  reports the address the CDN sees, whole-category downloads with progress,
+  and *Organize output*, which produces the same named folders as `extract`.
+- **設定 Settings.** Folders, connection (direct, the built-in Japanese relay,
+  or a proxy), rare variants, parallel downloads, and a day or night theme that
+  can follow Windows.
+
+Gallery pictures are fetched as they scroll into view, in batches. Everything
+lands in the same raw mirror and download index as the command-line tool, so
+the two can share folders and neither downloads a file twice.
+
+Build and run:
+
+```sh
+dotnet build src/KsttkDl.App -c Release
+src/KsttkDl.App/bin/Release/net8.0-windows/ksttk-dl-app.exe
+```
+
+Settings are kept in `%LOCALAPPDATA%\ksttk-dl\settings.json`. The default data and
+output folders are `Documents\ksttk-dl\data` and `Documents\ksttk-dl\output`.
 
 ## Asset discovery
 
@@ -24,6 +58,8 @@ kc3-translations' `tools/convert-quotes.py`.
 ## Requirements
 
 - .NET 8 SDK
+- Windows 10 or later for the desktop app; the command-line tool runs anywhere
+  .NET 8 does
 - A network path into Japan. The CDN only serves Japanese IP addresses. Use
   `--jp` for the built-in Japanese relay, `--proxy` for your own proxy, or run
   ksttk-dl from a Japanese connection
@@ -42,7 +78,25 @@ ksttk-dl extract [--categories ...] [--include-rare]
 Run `refresh-data` before the first download and after game updates. All other
 commands read from `data/`.
 
-Both `download` and `extract` accept `--data <dir>` and `--output <dir>`.
+Every command accepts `--data <dir>` and `--output <dir>`.
+
+### Single items
+
+`get` downloads one ship, piece of equipment or furniture, or one map instead
+of a whole category:
+
+```sh
+ksttk-dl get ship "Yamato Kai Ni" --world 1     # pictures and voice lines
+ksttk-dl get ship 131 --world 1 --no-voices
+ksttk-dl get equipment 9 --world 1
+ksttk-dl get furniture 1 --world 1
+ksttk-dl get map 1-1 --world 1                  # or a whole area: get map 7
+```
+
+Ships and equipment can be named in English or Japanese, or by id; a partial
+name works when it matches one entry. `--extract` organizes the category into
+the output tree afterwards, as `extract` would. `get` also accepts
+`--include-rare`, `--host`, `--jp` and `--proxy`.
 
 ### Built-in Japanese relay
 
@@ -176,5 +230,9 @@ quotes:
 - `src/KsttkDl.Core/MasterData`: `api_start2`, translation parsing, `refresh-data`
 - `src/KsttkDl.Core/Catalog`: asset enumeration
 - `src/KsttkDl.Core/Download`: HTTP client, retries, resumable index
+- `src/KsttkDl.Core/Fetch`: per-entity catalog lookups and single-item downloads
+- `src/KsttkDl.Core/Tunnel`: VPN Gate relay list, OpenVPN client and userspace
+  TCP/IP stack behind `--jp`
 - `src/KsttkDl.Core/Extraction`: atlas unpacking and organized output
 - `src/KsttkDl.Cli`: System.CommandLine front end
+- `src/KsttkDl.App`: WPF desktop app

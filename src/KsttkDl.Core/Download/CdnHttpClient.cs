@@ -11,33 +11,41 @@ public static class CdnHttpClient
 
     private static readonly string[] SupportedSchemes = ["http", "https", "socks4", "socks4a", "socks5"];
 
-    private static readonly Lazy<HttpClient> LazyClient = new(Create);
+    private static readonly object Gate = new();
 
+    private static HttpClient? _client;
     private static IWebProxy? _proxy;
     private static JpTunnel? _tunnel;
 
-    public static HttpClient Instance => LazyClient.Value;
-
-    /// <summary> routes every request through <paramref name="proxyUrl"/>, e.g. <c>socks5://127.0.0.1:1080</c> or <c>http://user:pass@host:8080</c>. must run before the first <see cref="Instance"/> access, since the pooled handler is fixed once built </summary>
-    public static void UseProxy(string proxyUrl)
+    public static HttpClient Instance
     {
-        if (LazyClient.IsValueCreated)
+        get
         {
-            throw new InvalidOperationException("The proxy must be set before the first request.");
+            lock (Gate)
+            {
+                return _client ??= Create();
+            }
         }
-
-        _proxy = ParseProxy(proxyUrl);
     }
 
-    /// <summary> opens every connection through <paramref name="tunnel"/>, so all traffic leaves from its Japanese relay. like <see cref="UseProxy"/>, it must run before the first request </summary>
-    public static void UseTunnel(JpTunnel tunnel)
-    {
-        if (LazyClient.IsValueCreated)
-        {
-            throw new InvalidOperationException("The tunnel must be set before the first request.");
-        }
+    /// <summary>routes every later request through <paramref name="proxyUrl"/>, e.g. <c>socks5://127.0.0.1:1080</c> or <c>http://user:pass@host:8080</c>.</summary>
+    public static void UseProxy(string proxyUrl) => Configure(ParseProxy(proxyUrl), null);
 
-        _tunnel = tunnel;
+    /// <summary>opens every later connection through <paramref name="tunnel"/>, so traffic leaves from its Japanese relay.</summary>
+    public static void UseTunnel(JpTunnel tunnel) => Configure(null, tunnel);
+
+    /// <summary>goes back to the machine's own network path.</summary>
+    public static void UseDirect() => Configure(null, null);
+
+    // the pooled handler is fixed once built, so a change of route builds a new client; requests already running finish on the old one
+    private static void Configure(IWebProxy? proxy, JpTunnel? tunnel)
+    {
+        lock (Gate)
+        {
+            _proxy = proxy;
+            _tunnel = tunnel;
+            _client = null;
+        }
     }
 
     public static IWebProxy ParseProxy(string proxyUrl)

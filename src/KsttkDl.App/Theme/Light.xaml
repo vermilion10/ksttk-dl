@@ -1,0 +1,70 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 母港 Harbour Office, day: washi paper, sea teal, brass hairlines -->
+    <Color x:Key="Color.Bg">#F2ECDF</Color>
+    <Color x:Key="Color.BgDeep">#E6DCC8</Color>
+    <Color x:Key="Color.Teal">#21807D</Color>
+    <Color x:Key="Color.TealDeep">#17605E</Color>
+    <Color x:Key="Color.TealLight">#3FA29D</Color>
+    <Color x:Key="Color.Orange">#C9621E</Color>
+    <Color x:Key="Color.OrangeLight">#E4813A</Color>
+
+    <SolidColorBrush x:Key="Brush.Panel" Color="#FBF8F1" />
+    <SolidColorBrush x:Key="Brush.PanelAlt" Color="#F1EADC" />
+    <SolidColorBrush x:Key="Brush.Ink" Color="#2A2824" />
+    <SolidColorBrush x:Key="Brush.InkSoft" Color="#5E584D" />
+    <SolidColorBrush x:Key="Brush.InkFaint" Color="#8A8273" />
+    <SolidColorBrush x:Key="Brush.Teal" Color="{StaticResource Color.Teal}" />
+    <SolidColorBrush x:Key="Brush.TealDeep" Color="{StaticResource Color.TealDeep}" />
+    <SolidColorBrush x:Key="Brush.TealText" Color="#17605E" />
+    <SolidColorBrush x:Key="Brush.TealWash" Color="#1A21807D" />
+    <SolidColorBrush x:Key="Brush.Gold" Color="#B08D4F" />
+    <SolidColorBrush x:Key="Brush.GoldSoft" Color="#66B08D4F" />
+    <SolidColorBrush x:Key="Brush.Orange" Color="{StaticResource Color.Orange}" />
+    <SolidColorBrush x:Key="Brush.OrangeWash" Color="#22C9621E" />
+    <SolidColorBrush x:Key="Brush.Vermilion" Color="#B5372A" />
+    <SolidColorBrush x:Key="Brush.Line" Color="#D9CFBC" />
+    <SolidColorBrush x:Key="Brush.OnAccent" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="Brush.Disabled" Color="#B9B1A2" />
+    <SolidColorBrush x:Key="Brush.Rail" Color="#E9E0CD" />
+    <SolidColorBrush x:Key="Brush.RailLine" Color="#CDBF9F" />
+    <SolidColorBrush x:Key="Brush.Watermark" Color="#14826C46" />
+    <SolidColorBrush x:Key="Brush.Sketch" Color="#22826C46" />
+    <SolidColorBrush x:Key="Brush.LogBg" Color="#F6F1E6" />
+    <SolidColorBrush x:Key="Brush.LogInk" Color="#3D4A47" />
+    <SolidColorBrush x:Key="Brush.Shade" Color="#33000000" />
+    <SolidColorBrush x:Key="Brush.Scrim" Color="#99F2ECDF" />
+
+    <LinearGradientBrush x:Key="Brush.WindowBg" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Offset="0" Color="#F5F0E5" />
+        <GradientStop Offset="1" Color="#EAE1CF" />
+    </LinearGradientBrush>
+
+    <!-- armour-plate honeycomb, drawn rather than taken from the game -->
+    <DrawingBrush x:Key="Brush.Honeycomb" TileMode="Tile" Viewport="0,0,52,90" ViewportUnits="Absolute" Stretch="None">
+        <DrawingBrush.Drawing>
+            <GeometryDrawing Geometry="M 0,15 L 26,0 L 52,15 L 52,45 L 26,60 L 0,45 Z M 26,60 L 26,90">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="{StaticResource Brush.Watermark}" Thickness="1" />
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingBrush.Drawing>
+    </DrawingBrush>
+
+    <LinearGradientBrush x:Key="Brush.Accent" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Offset="0" Color="{StaticResource Color.TealLight}" />
+        <GradientStop Offset="0.55" Color="{StaticResource Color.Teal}" />
+        <GradientStop Offset="1" Color="{StaticResource Color.TealDeep}" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.AccentHover" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Offset="0" Color="#5CBDB7" />
+        <GradientStop Offset="1" Color="{StaticResource Color.Teal}" />
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="Brush.AccentPressed" Color="{StaticResource Color.TealDeep}" />
+    <LinearGradientBrush x:Key="Brush.Hot" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Offset="0" Color="{StaticResource Color.OrangeLight}" />
+        <GradientStop Offset="1" Color="{StaticResource Color.Orange}" />
+    </LinearGradientBrush>
+
+</ResourceDictionary>

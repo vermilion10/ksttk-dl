@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/KsttkDl.App/KsttkDl.App.csproj" />
     <Project Path="src/KsttkDl.Cli/KsttkDl.Cli.csproj" />
     <Project Path="src/KsttkDl.Core/KsttkDl.Core.csproj" />
   </Folder>

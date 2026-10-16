@@ -1,0 +1,114 @@
+<UserControl x:Class="KsttkDl.App.Views.ShipsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:KsttkDl.App.ViewModels"
+             xmlns:c="clr-namespace:KsttkDl.App.Controls"
+             xmlns:views="clr-namespace:KsttkDl.App.Views">
+    <Grid>
+        <Grid Margin="28,20,10,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Grid Margin="0,0,18,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
+                    <TextBlock Text="艦娘" Style="{StaticResource Text.Title}" />
+                    <TextBlock Text="Ships" Style="{StaticResource Text.Heading}" Margin="12,0,0,3" VerticalAlignment="Bottom"
+                               Foreground="{DynamicResource Brush.InkSoft}" />
+                    <TextBlock Text="{Binding Summary}" Style="{StaticResource Text.Caption}" Margin="14,0,0,5" VerticalAlignment="Bottom" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
+                    <ToggleButton Style="{StaticResource Chip}" Content="深海 Abyssal" Margin="0,0,10,0" VerticalAlignment="Center"
+                                  IsChecked="{Binding Abyssal}" ToolTip="Show abyssal ships instead of shipgirls" />
+                    <Grid Width="260">
+                        <TextBox x:Name="SearchBox" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged, Delay=200}"
+                                 AutomationProperties.Name="Search ships" />
+                        <TextBlock Text="Search name, よみ or id" Style="{StaticResource Text.Caption}" Margin="10,0,0,0"
+                                   VerticalAlignment="Center" IsHitTestVisible="False"
+                                   Visibility="{Binding Text, ElementName=SearchBox, Converter={StaticResource Presence}, ConverterParameter=invert}" />
+                    </Grid>
+                </StackPanel>
+            </Grid>
+
+            <ItemsControl Grid.Row="1" ItemsSource="{Binding Types}" Margin="0,0,18,8" Focusable="False">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:Filter}">
+                        <ToggleButton Style="{StaticResource Chip}" Content="{Binding Label}" IsChecked="{Binding On}"
+                                      Command="{Binding DataContext.ApplyFilters, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <ItemsControl x:Name="Cards" Grid.Row="2" Style="{StaticResource GalleryList}" ItemsSource="{Binding Gallery.Rows}"
+                          SizeChanged="Cards_SizeChanged">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <ItemsControl ItemsSource="{Binding Items}" Loaded="Row_Loaded" Focusable="False">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:ShipTile}">
+                                    <Button Style="{StaticResource TileButton}" Width="150" CommandParameter="{Binding}"
+                                            Command="{Binding DataContext.Open, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            AutomationProperties.Name="{Binding Title}">
+                                        <StackPanel>
+                                            <Border Background="{Binding Frame}" CornerRadius="4" Padding="3">
+                                                <Grid Width="144" Height="198">
+                                                    <Border Style="{StaticResource Placeholder}">
+                                                        <Grid>
+                                                            <Rectangle Fill="{DynamicResource Brush.Honeycomb}" />
+                                                            <TextBlock Text="{Binding Subtitle}" FontFamily="{DynamicResource Font.Heading}" FontSize="15"
+                                                                       Foreground="{DynamicResource Brush.InkFaint}" TextWrapping="Wrap" TextAlignment="Center"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="10" />
+                                                        </Grid>
+                                                    </Border>
+                                                    <Image c:ImageLoader.DecodeWidth="180" c:ImageLoader.Path="{Binding ImagePath}" Stretch="Uniform" />
+                                                    <ContentControl Style="{StaticResource Stamp}" Content="欠" HorizontalAlignment="Right"
+                                                                    VerticalAlignment="Bottom" Margin="0,0,6,6"
+                                                                    Visibility="{Binding Absent, Converter={StaticResource BoolToVisibility}}" />
+                                                </Grid>
+                                            </Border>
+                                            <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" Margin="2,6,2,0"
+                                                       TextTrimming="CharacterEllipsis" Foreground="{DynamicResource Brush.Ink}" />
+                                            <TextBlock Margin="2,1,2,0" FontSize="11" Foreground="{DynamicResource Brush.InkFaint}"
+                                                       TextTrimming="CharacterEllipsis">
+                                                <Run Text="{Binding Number, Mode=OneWay}" />
+                                                <Run Text="·" />
+                                                <Run Text="{Binding ShipType, Mode=OneWay}" />
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Grid>
+
+        <views:EmptyState Visibility="{Binding HasData, Converter={StaticResource Presence}, ConverterParameter=invert}" />
+
+        <ContentControl Content="{Binding Detail}" Focusable="False"
+                        Visibility="{Binding Detail, Converter={StaticResource Presence}}">
+            <ContentControl.ContentTemplate>
+                <DataTemplate DataType="{x:Type vm:ShipDetailViewModel}">
+                    <views:ShipDetailView />
+                </DataTemplate>
+            </ContentControl.ContentTemplate>
+        </ContentControl>
+    </Grid>
+</UserControl>

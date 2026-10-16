@@ -1,0 +1,21 @@
+<UserControl x:Class="KsttkDl.App.Views.EmptyState"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- shown on the browsing pages until master data exists -->
+    <Grid DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
+        <Rectangle Fill="{DynamicResource Brush.Scrim}" />
+        <ContentControl Style="{StaticResource Paper}" Width="460" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="28,24">
+            <StackPanel>
+                <ContentControl Style="{StaticResource Stamp}" Content="未" HorizontalAlignment="Left" Width="44" Height="44" />
+                <TextBlock Text="No game data yet" Style="{StaticResource Text.Heading}" FontSize="20" Margin="0,12,0,0" />
+                <TextBlock Style="{StaticResource Text.Body}" Margin="0,8,0,0" Foreground="{DynamicResource Brush.InkSoft}"
+                           Text="The ship list, names and translations come from community data files. Get them once on the Sync page; pictures and voices are then fetched as you browse." />
+                <TextBlock Style="{StaticResource Text.Caption}" Margin="0,8,0,0"
+                           Visibility="{Binding Services.IsLoading, Converter={StaticResource BoolToVisibility}}"
+                           Text="Loading the game data…" />
+                <Button Style="{StaticResource Button.Primary}" Content="Go to 同期 Sync" HorizontalAlignment="Left" Margin="0,18,0,0"
+                        Command="{Binding Navigate}" CommandParameter="Sync" />
+            </StackPanel>
+        </ContentControl>
+    </Grid>
+</UserControl>

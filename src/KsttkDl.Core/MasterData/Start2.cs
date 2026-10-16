@@ -10,9 +10,15 @@ public sealed record ShipGraph(
     bool HasBattleN,
     bool HasBokoD);
 
-public sealed record MstShip(int Id, string Name, string Yomi, int VoiceFlag);
+/// <summary><paramref name="Rarity"/> is api_backs (card frame, 1-8) and <paramref name="SortNo"/> the library number; both are absent, and 0, on abyssal ships.</summary>
+public sealed record MstShip(
+    int Id, string Name, string Yomi, int VoiceFlag, int ShipType = 0, int Rarity = 0, int SortNo = 0, int SortId = 0);
 
-public sealed record SlotItem(int Id, string Name, int[] Type, string? Version);
+/// <summary>api_type[2] is the equipment category shown in game; <paramref name="Rarity"/> is api_rare (0 common to 7).</summary>
+public sealed record SlotItem(int Id, string Name, int[] Type, string? Version, int Rarity = 0, int SortNo = 0)
+{
+    public int Category => Type.Length > 2 ? Type[2] : 0;
+}
 
 public sealed record MapInfo(int MapAreaId, int No, string Name, bool HasGauge);
 
@@ -20,7 +26,9 @@ public sealed record MapBgm(int MapAreaId, int No, int MovingBgm, int[] BattleBg
 
 public sealed record Bgm(int Id, string Name);
 
-public sealed record Furniture(int Id, string Title, int ActiveFlag, string? Version);
+/// <summary><paramref name="Type"/> is the room slot: 0 floor, 1 wall, 2 window, 3 object, 4 chest, 5 desk.</summary>
+public sealed record Furniture(
+    int Id, string Title, int ActiveFlag, string? Version, int Type = 0, int No = 0, int Rarity = 0, string Description = "");
 
 public sealed record UseItem(int Id, string Name);
 
@@ -38,6 +46,8 @@ public sealed class Start2
     public required IReadOnlyList<Furniture> Furniture { get; init; }
     public required IReadOnlyList<UseItem> UseItems { get; init; }
     public required IReadOnlyDictionary<int, MapArea> MapAreas { get; init; }
+    public required IReadOnlyDictionary<int, string> ShipTypes { get; init; }
+    public required IReadOnlyDictionary<int, string> EquipmentTypes { get; init; }
 
     public static Start2 Load(string path)
     {
@@ -57,6 +67,10 @@ public sealed class Start2
             UseItems = Read(root, "api_mst_useitem", e => new UseItem(Int(e, "api_id"), Str(e, "api_name"))),
             MapAreas = Read(root, "api_mst_maparea", e => new MapArea(Int(e, "api_id"), Str(e, "api_name")))
                 .ToDictionary(a => a.Id),
+            ShipTypes = Read(root, "api_mst_stype", e => (Id: Int(e, "api_id"), Name: Str(e, "api_name")))
+                .ToDictionary(t => t.Id, t => t.Name),
+            EquipmentTypes = Read(root, "api_mst_slotitem_equiptype", e => (Id: Int(e, "api_id"), Name: Str(e, "api_name")))
+                .ToDictionary(t => t.Id, t => t.Name),
         };
     }
 
@@ -95,7 +109,11 @@ public sealed class Start2
         Int(e, "api_id"),
         Str(e, "api_name"),
         Str(e, "api_yomi"),
-        Int(e, "api_voicef"));
+        Int(e, "api_voicef"),
+        Int(e, "api_stype"),
+        Int(e, "api_backs"),
+        Int(e, "api_sortno"),
+        Int(e, "api_sort_id"));
 
     private static SlotItem ReadSlotItem(JsonElement e) => new(
         Int(e, "api_id"),
@@ -105,7 +123,9 @@ public sealed class Start2
             : [],
         e.TryGetProperty("api_version", out var v) && v.ValueKind == JsonValueKind.Number
             ? v.GetInt32().ToString()
-            : null);
+            : null,
+        Int(e, "api_rare"),
+        Int(e, "api_sortno"));
 
     private static MapInfo ReadMapInfo(JsonElement e) => new(
         Int(e, "api_maparea_id"),
@@ -127,7 +147,11 @@ public sealed class Start2
         Int(e, "api_active_flag"),
         e.TryGetProperty("api_version", out var v) && v.ValueKind == JsonValueKind.Number
             ? v.GetInt32().ToString()
-            : null);
+            : null,
+        Int(e, "api_type"),
+        Int(e, "api_no"),
+        Int(e, "api_rarity"),
+        Str(e, "api_description"));
 
     private static int Int(JsonElement e, string name) =>
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : 0;

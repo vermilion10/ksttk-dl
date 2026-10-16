@@ -1,0 +1,165 @@
+<Window x:Class="KsttkDl.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:KsttkDl.App.ViewModels"
+        xmlns:views="clr-namespace:KsttkDl.App.Views"
+        xmlns:infra="clr-namespace:KsttkDl.App.Infrastructure"
+        Title="ksttk-dl" Width="1320" Height="840" MinWidth="980" MinHeight="620"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="{DynamicResource Font.Body}"
+        Background="{DynamicResource Brush.WindowBg}"
+        Foreground="{DynamicResource Brush.Ink}"
+        TextOptions.TextFormattingMode="Display">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="44" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0"
+                      UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <infra:EqualsConverter x:Key="Equals" />
+        <DataTemplate DataType="{x:Type vm:SyncViewModel}">
+            <views:SyncView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ShipsViewModel}">
+            <views:ShipsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:EquipmentViewModel}">
+            <views:CollectionView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:FurnitureViewModel}">
+            <views:CollectionView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:MapsViewModel}">
+            <views:MapsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+            <views:SettingsView />
+        </DataTemplate>
+    </Window.Resources>
+
+    <Border x:Name="Frame" BorderBrush="{DynamicResource Brush.RailLine}" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="44" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- title bar -->
+            <Border Background="{DynamicResource Brush.Rail}" BorderBrush="{DynamicResource Brush.RailLine}" BorderThickness="0,0,0,1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal" Margin="18,0,0,0" VerticalAlignment="Center">
+                        <Path Data="M 9,0 L 9,20 M 3,6 L 15,6 M 1,14 Q 9,24 17,14" Stroke="{DynamicResource Brush.Teal}"
+                              StrokeThickness="2" Width="18" Height="22" Stretch="Uniform" Margin="0,0,10,0" />
+                        <TextBlock Text="ksttk-dl" FontFamily="{DynamicResource Font.Heading}" FontSize="17" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="母港事務室" FontFamily="{DynamicResource Font.Heading}" FontSize="12" Margin="10,2,0,0"
+                                   Foreground="{DynamicResource Brush.InkFaint}" VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <Border CornerRadius="12" Padding="10,3" Margin="0,0,12,0" VerticalAlignment="Center"
+                                Background="{DynamicResource Brush.TealWash}"
+                                ToolTip="How requests reach the Japan-only CDN. Change it in Settings.">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource Geo.Flag}" Stroke="{DynamicResource Brush.Orange}" StrokeThickness="1.4"
+                                      Width="10" Height="14" Stretch="Uniform" Margin="0,0,7,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Services.NetworkStatus}" FontSize="12"
+                                           Foreground="{DynamicResource Brush.TealText}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        <Button Style="{StaticResource Button.Glyph}" Content="&#xE793;" FontSize="14"
+                                Command="{Binding CycleTheme}" ToolTip="Switch between light and dark"
+                                AutomationProperties.Name="Switch theme" WindowChrome.IsHitTestVisibleInChrome="True" />
+                        <Button Style="{StaticResource Button.Glyph}" Content="&#xE921;" Click="Minimize_Click"
+                                AutomationProperties.Name="Minimize" WindowChrome.IsHitTestVisibleInChrome="True" />
+                        <Button x:Name="MaxButton" Style="{StaticResource Button.Glyph}" Content="&#xE922;" Click="Maximize_Click"
+                                AutomationProperties.Name="Maximize" WindowChrome.IsHitTestVisibleInChrome="True" />
+                        <Button Style="{StaticResource Button.Close}" Content="&#xE8BB;" Click="Close_Click"
+                                AutomationProperties.Name="Close" WindowChrome.IsHitTestVisibleInChrome="True" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="104" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- the port menu rail -->
+                <Border Background="{DynamicResource Brush.Rail}" BorderBrush="{DynamicResource Brush.RailLine}" BorderThickness="0,0,1,0">
+                    <StackPanel Margin="0,22,0,0">
+                        <RadioButton Style="{StaticResource Medallion}" Content="艦娘" Tag="Ships" Background="{StaticResource Medal.Ships}" AutomationProperties.Name="Ships"
+                                     IsChecked="{Binding Page, Converter={StaticResource Equals}, ConverterParameter=Ships}" />
+                        <RadioButton Style="{StaticResource Medallion}" Content="装備" Tag="Equipment" Background="{StaticResource Medal.Equipment}" AutomationProperties.Name="Equipment"
+                                     IsChecked="{Binding Page, Converter={StaticResource Equals}, ConverterParameter=Equipment}" />
+                        <RadioButton Style="{StaticResource Medallion}" Content="家具" Tag="Furniture" Background="{StaticResource Medal.Furniture}" AutomationProperties.Name="Furniture"
+                                     IsChecked="{Binding Page, Converter={StaticResource Equals}, ConverterParameter=Furniture}" />
+                        <RadioButton Style="{StaticResource Medallion}" Content="海域" Tag="Maps" Background="{StaticResource Medal.Maps}" AutomationProperties.Name="Maps"
+                                     IsChecked="{Binding Page, Converter={StaticResource Equals}, ConverterParameter=Maps}" />
+                        <Rectangle Height="1" Margin="22,4,22,18" Fill="{DynamicResource Brush.RailLine}" />
+                        <RadioButton Style="{StaticResource Medallion}" Content="同期" Tag="Sync" Background="{StaticResource Medal.Sync}" AutomationProperties.Name="Sync"
+                                     IsChecked="{Binding Page, Converter={StaticResource Equals}, ConverterParameter=Sync}" />
+                        <RadioButton Style="{StaticResource Medallion}" Content="設定" Tag="Settings" Background="{StaticResource Medal.Settings}" AutomationProperties.Name="Settings"
+                                     IsChecked="{Binding Page, Converter={StaticResource Equals}, ConverterParameter=Settings}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- the office: honeycomb paper, a faint harbour sketch, then the page -->
+                <Grid Grid.Column="1" ClipToBounds="True">
+                    <Rectangle Fill="{DynamicResource Brush.Honeycomb}" />
+                    <Path Data="{StaticResource Geo.Harbour}" Stroke="{DynamicResource Brush.Sketch}" StrokeThickness="1.4"
+                          Width="640" Height="300" Stretch="Uniform" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                          Margin="0,0,24,10" IsHitTestVisible="False" />
+                    <ContentControl Content="{Binding Current}" Focusable="False" />
+
+                    <!-- notices, flagged like the fleet's return messages -->
+                    <ItemsControl ItemsSource="{Binding Services.Toasts}" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                  Margin="0,0,24,24" Width="360" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type infra:Toast}">
+                                <Grid Margin="0,8,0,0">
+                                    <Border Background="{DynamicResource Brush.Panel}" CornerRadius="6" Padding="14,10,14,12"
+                                            BorderBrush="{DynamicResource Brush.Teal}" BorderThickness="1">
+                                        <Border.Effect>
+                                            <DropShadowEffect BlurRadius="14" ShadowDepth="3" Opacity="0.25" />
+                                        </Border.Effect>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Path x:Name="Flag" Data="{StaticResource Geo.Flag}" Stroke="{DynamicResource Brush.Teal}"
+                                                  StrokeThickness="1.6" Width="14" Height="20" Stretch="Uniform"
+                                                  VerticalAlignment="Top" Margin="0,2,12,0" />
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"
+                                                           Foreground="{DynamicResource Brush.Ink}" />
+                                                <TextBlock Text="{Binding Message}" Style="{StaticResource Text.Caption}" Margin="0,3,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding Kind}" Value="Error">
+                                        <Setter TargetName="Flag" Property="Stroke" Value="{DynamicResource Brush.Vermilion}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Kind}" Value="Success">
+                                        <Setter TargetName="Flag" Property="Stroke" Value="{DynamicResource Brush.Orange}" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
