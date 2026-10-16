@@ -100,6 +100,18 @@ public sealed class RoomComposer(GameLibrary library)
     /// <param name="hasSpecialArt">the server has confirmed the ship's special-remodel art.</param>
     public IReadOnlyList<SecretaryArt> SecretaryArts(int shipId, bool hasSpecialArt = false)
     {
+        // a past seasonal CG from the archive: only its card-sized pictures are kept
+        if (IsSeasonalArchive(shipId))
+        {
+            const string archived = "A past seasonal CG, enlarged from the card-sized picture the server keeps once the "
+                                    + "season ends. Its size and place are estimates; adjust them with Size and a drag";
+            return
+            [
+                new(OriginalArt, "Seasonal CG (enlarged)", archived),
+                new(OriginalDamagedArt, "Seasonal CG, damaged (enlarged)", archived),
+            ];
+        }
+
         // during a season the server only has the seasonal full CG, while the card-sized art keeps the original
         const string current = "The full CG the port shows now: seasonal art while a season runs";
         const string original = "The original art, enlarged from the card-sized picture (character full in the ship "
@@ -142,7 +154,11 @@ public sealed class RoomComposer(GameLibrary library)
 
     /// <summary>the card-sized art; it keeps the original look while a seasonal CG replaces the full one.</summary>
     public AssetEntry? CardArtEntry(int shipId, bool damaged) =>
-        library.Find("ship", shipId, damaged ? "character_full_dmg" : "character_full");
+        library.Find("ship", shipId, damaged ? "character_full_dmg" : "character_full")
+        ?? library.Find("ship-seasonal", shipId, damaged ? "character_full_dmg" : "character_full");
+
+    /// <summary>graph ids 5001 and up: past seasonal CGs, with no ship of their own.</summary>
+    public bool IsSeasonalArchive(int shipId) => library.Find("ship-seasonal", shipId, "character_full") is not null;
 
     /// <summary>the special-remodel art, which only ships with a special remodel have.</summary>
     public AssetEntry SpecialEntry(int shipId) =>
@@ -211,8 +227,11 @@ public sealed class RoomComposer(GameLibrary library)
         _ => TimeOfDay.Dusk,
     };
 
-    /// <summary>the sprites of one piece of furniture at its slot's anchor; empty while its files are missing.</summary>
-    public IReadOnlyList<RoomSprite> Furniture(int furnitureId)
+    /// <summary>
+    /// the sprites of one piece of furniture at its slot's anchor; empty while its files are missing.
+    /// <paramref name="secretaryId"/> matters to furniture that changes with the secretary, like the umbrella stand
+    /// </summary>
+    public IReadOnlyList<RoomSprite> Furniture(int furnitureId, int secretaryId = 0)
     {
         var furniture = library.Start2.Furniture.FirstOrDefault(f => f.Id == furnitureId);
         if (furniture is null)
@@ -229,8 +248,14 @@ public sealed class RoomComposer(GameLibrary library)
             return [new RoomSprite(normal, null, x, y)];
         }
 
-        return AnimatedFirstFrame(furnitureId, slot);
+        return AnimatedFirstFrame(furnitureId, slot, secretaryId);
     }
+
+    /// <summary>true when the furniture's pictures depend on who the secretary is.</summary>
+    public bool DependsOnSecretary(int furnitureId) =>
+        library.Find("furniture", furnitureId, "scripts_json") is { } entry
+        && library.LocalPath(entry) is { } path
+        && File.ReadAllText(path).Contains("\"umbrellara\"", StringComparison.Ordinal);
 
     public RoomSprite? Outside(int windowFurnitureId, TimeOfDay time)
     {
@@ -321,7 +346,7 @@ public sealed class RoomComposer(GameLibrary library)
         _ => (0, 0),
     };
 
-    private IReadOnlyList<RoomSprite> AnimatedFirstFrame(int furnitureId, FurnitureSlot slot)
+    private IReadOnlyList<RoomSprite> AnimatedFirstFrame(int furnitureId, FurnitureSlot slot, int secretaryId)
     {
         string? Local(string type) => library.Find("furniture", furnitureId, type) is { } e ? library.LocalPath(e) : null;
 
@@ -347,6 +372,29 @@ public sealed class RoomComposer(GameLibrary library)
 
             var sprites = new List<RoomSprite>();
             (int X, int Y)? anchor = null;
+
+            // the umbrella stand names placeholder frames in its script and picks the real ones by the secretary
+            if (scripts.RootElement.TryGetProperty("umbrellara", out _))
+            {
+                foreach (var name in UmbrellaFrames(scripts.RootElement, groups.GetArrayLength(), secretaryId))
+                {
+                    if (!frameTable.TryGetProperty(name, out var frame))
+                    {
+                        continue;
+                    }
+
+                    var rect = frame.GetProperty("frame");
+                    var (trimX, trimY) = frame.TryGetProperty("spriteSourceSize", out var trim) ? (Int(trim, "x"), Int(trim, "y")) : (0, 0);
+                    var (fullW, fullH) = frame.TryGetProperty("sourceSize", out var size)
+                        ? (Int(size, "w"), Int(size, "h"))
+                        : (Int(rect, "w"), Int(rect, "h"));
+                    anchor ??= Anchor(slot, fullW, fullH);
+                    sprites.Add(new RoomSprite(atlas, new SpriteRect(Int(rect, "x"), Int(rect, "y"), Int(rect, "w"), Int(rect, "h")),
+                        anchor.Value.X + trimX, anchor.Value.Y + trimY));
+                }
+
+                return sprites;
+            }
 
             foreach (var group in groups.EnumerateArray())
             {
@@ -387,6 +435,65 @@ public sealed class RoomComposer(GameLibrary library)
         catch (Exception ex) when (ex is JsonException or InvalidOperationException or KeyNotFoundException or IOException)
         {
             return [];
+        }
+    }
+
+    /// <summary>
+    /// the client's choice of umbrella stand frames: the set comes from the secretary's reading or ship type (set 3
+    /// when neither is listed), then the stand itself plus one umbrella per listed ship, leaving out the
+    /// secretary's own umbrella when the script says so
+    /// </summary>
+    private IEnumerable<string> UmbrellaFrames(JsonElement script, int groupCount, int secretaryId)
+    {
+        library.Start2.Ships.TryGetValue(secretaryId, out var ship);
+        var yomi = ship?.Yomi ?? "";
+        var shipType = ship?.ShipType ?? 0;
+        var takesOwn = script.TryGetProperty("AnimationFlag", out var flag) && flag.ValueKind == JsonValueKind.True;
+
+        static List<string> Strings(JsonElement e, string name) =>
+            e.TryGetProperty(name, out var list) && list.ValueKind == JsonValueKind.Array
+                ? list.EnumerateArray().Select(x => x.ValueKind == JsonValueKind.String ? x.GetString()! : x.ToString()).ToList()
+                : [];
+
+        var fileNo = 3;
+        if (script.TryGetProperty("standtype", out var standTypes))
+        {
+            foreach (var standType in standTypes.EnumerateArray())
+            {
+                if (Strings(standType, "shipyomi").Contains(yomi) || Strings(standType, "shiptype").Contains(shipType.ToString()))
+                {
+                    fileNo = Int(standType, "fileno");
+                    break;
+                }
+            }
+        }
+
+        // the secretary's place among the listed ships, and how many umbrellas the chosen set has
+        var own = 0;
+        int? count = null;
+        foreach (var set in script.GetProperty("umbrellara").EnumerateArray())
+        {
+            var names = Strings(set, "shipyomi");
+            own = names.IndexOf(yomi) + 1;
+            if (Int(set, "fileno") == fileNo)
+            {
+                count = names.Count;
+            }
+
+            if (own > 0)
+            {
+                break;
+            }
+        }
+
+        var prefix = $"f385_e07{fileNo - 1}_umbrellarack_{fileNo}";
+        yield return prefix + "_A.png";
+        for (var i = 1; i < groupCount && !(i > count); i++)
+        {
+            if (!(i == own && takesOwn))
+            {
+                yield return $"{prefix}_B{i}.png";
+            }
         }
     }
 

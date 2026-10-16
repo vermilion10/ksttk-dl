@@ -258,7 +258,7 @@
                             </Grid>
                             <StackPanel Grid.Row="1" Margin="0,10,0,10">
                                 <TextBlock Text="CG" Style="{StaticResource Text.Label}" Margin="2,0,0,4" />
-                                <ListBox ItemsSource="{Binding Arts}" SelectedValuePath="Key" SelectedValue="{Binding Art}"
+                                <ListBox ItemsSource="{Binding Arts}" SelectedItem="{Binding SelectedArt}"
                                          MaxHeight="150" AutomationProperties.Name="Secretary CG">
                                     <ListBox.ItemContainerStyle>
                                         <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
@@ -274,6 +274,8 @@
                                     </ListBox.ItemTemplate>
                                 </ListBox>
                                 <CheckBox IsChecked="{Binding LeftOfCentre}" Content="Stand left of centre" Margin="0,8,0,0" />
+                                <CheckBox IsChecked="{Binding SeasonalArchive}" Content="Pick from past seasonal CGs" Margin="0,6,0,0"
+                                          ToolTip="The server keeps past seasonal CGs at card size; they are enlarged in the room" />
                             </StackPanel>
                             <ItemsControl Grid.Row="2" Style="{StaticResource GalleryList}" ItemsSource="{Binding ShipGallery.Rows}">
                                 <ItemsControl.ItemTemplate>

@@ -30,7 +30,10 @@ you open:
   enlarged from the card-sized art, so its size and place are estimates; each
   layer has a Size slider for that. Ships with a special remodel also offer
   that animation's art, and earlier CGs that ksttk-dl kept in `output/history`
-  when a newer version replaced them are listed too. The *Port UI* layer draws the port interface in any of its
+  when a newer version replaced them are listed too. Past seasonal CGs from
+  the server's archive can stand in the room as well, enlarged from their
+  card size. Furniture that changes with the secretary, such as the umbrella
+  stand, follows the chosen ship. The *Port UI* layer draws the port interface in any of its
   skins, in the game's own font, with an editable admiral name, rank, counts,
   resources and clock.
 - **画面 UI.** Every interface sprite sheet and fixed image by screen, with its

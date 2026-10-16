@@ -135,6 +135,8 @@ public sealed class RoomViewModel : Observable
     private readonly RoomPresetStore _presets = new(PresetPath);
     private readonly Dictionary<FurnitureSlot, List<EntityTile>> _slotTiles = [];
     private List<ShipTile> _ships = [];
+    private List<ShipTile> _seasonal = [];
+    private bool _seasonalArchive;
     private RoomLayer? _selected;
     private readonly DispatcherTimer _clock = new() { Interval = TimeSpan.FromSeconds(15) };
     private int _secretaryId;
@@ -298,6 +300,19 @@ public sealed class RoomViewModel : Observable
 
     public string PickerTitle => _selected is null ? "" : $"{_selected.Kanji}  {_selected.Label}";
 
+    /// <summary>the chosen entry of <see cref="Arts"/>, for the list to highlight.</summary>
+    public SecretaryArt? SelectedArt
+    {
+        get => Arts.FirstOrDefault(a => a.Key == _art);
+        set
+        {
+            if (value is not null)
+            {
+                Art = value.Key;
+            }
+        }
+    }
+
     /// <summary>the key of the secretary's picture, one of <see cref="Arts"/>.</summary>
     public string Art
     {
@@ -307,6 +322,7 @@ public sealed class RoomViewModel : Observable
             // the list clears its selection while it is refilled; that is not a choice
             if (!string.IsNullOrEmpty(value) && Set(ref _art, value))
             {
+                Raise(nameof(SelectedArt));
                 _ = SetSecretaryAsync(_secretaryId);
             }
         }
@@ -332,6 +348,19 @@ public sealed class RoomViewModel : Observable
             if (Set(ref _time, value))
             {
                 _ = RefreshOutsideAsync();
+            }
+        }
+    }
+
+    /// <summary>pick from past seasonal CGs instead of ships.</summary>
+    public bool SeasonalArchive
+    {
+        get => _seasonalArchive;
+        set
+        {
+            if (Set(ref _seasonalArchive, value))
+            {
+                FilterShips();
             }
         }
     }
@@ -438,6 +467,12 @@ public sealed class RoomViewModel : Observable
             .Select(s => new ShipTile(s, library.Names.Ship(s).English,
                 library.Start2.ShipTypes.GetValueOrDefault(s.ShipType, ""), library.Find("ship", s.Id, "card")))
             .ToList();
+        _seasonal = library.Catalog
+            .Where(e => e.Group == "ship-seasonal" && e.AssetType == "character_full")
+            .OrderBy(e => e.EntityId)
+            .Select(e => new ShipTile(new KsttkDl.Core.MasterData.MstShip(e.EntityId, $"季節 {e.EntityId}", "-", 0),
+                $"Seasonal CG {e.EntityId}", "", e))
+            .ToList();
         FilterShips();
 
         // the starting room: each slot's first item, as a new admiral's office has
@@ -466,7 +501,7 @@ public sealed class RoomViewModel : Observable
     private void FilterShips()
     {
         var search = _search.Trim();
-        ShipGallery.SetItems(_ships
+        ShipGallery.SetItems((_seasonalArchive ? _seasonal : _ships)
             .Where(t => search.Length == 0
                         || t.Title.Contains(search, StringComparison.OrdinalIgnoreCase)
                         || t.Ship.Name.Contains(search, StringComparison.Ordinal)
@@ -487,7 +522,7 @@ public sealed class RoomViewModel : Observable
         layer.Caption = AppServices.Current.Library!.Start2.Furniture.FirstOrDefault(f => f.Id == furnitureId)?.Title ?? "";
 
         await WithFetchAsync(composer.FurnitureEntries(furnitureId));
-        layer.Sprites = await LoadSpritesAsync(composer.Furniture(furnitureId));
+        layer.Sprites = await LoadSpritesAsync(composer.Furniture(furnitureId, _secretaryId));
 
         if (slot == FurnitureSlot.Window)
         {
@@ -507,7 +542,16 @@ public sealed class RoomViewModel : Observable
         var version = ++_secretaryVersion;
         _secretaryId = shipId;
         var layer = Layer("Secretary");
-        layer.Caption = library.ShipName(shipId);
+        layer.Caption = composer.IsSeasonalArchive(shipId) ? $"Seasonal CG {shipId}" : library.ShipName(shipId);
+
+        // a choice the new ship does not have falls back to its first one before anything is fetched
+        var choices = composer.SecretaryArts(shipId, _hasSpecialArt.Contains(shipId));
+        if (choices.All(a => a.Key != _art))
+        {
+            _art = choices[0].Key;
+            Raise(nameof(Art));
+            Raise(nameof(SelectedArt));
+        }
 
         if (composer.SecretaryEntry(shipId, _art) is { } entry)
         {
@@ -519,6 +563,7 @@ public sealed class RoomViewModel : Observable
                 AppServices.Current.Notify("No special-remodel art", $"{layer.Caption} has no special-remodel art, so the current CG is shown.");
                 _art = RoomComposer.CurrentArt;
                 Raise(nameof(Art));
+                Raise(nameof(SelectedArt));
                 if (composer.SecretaryEntry(shipId, _art) is { } current)
                 {
                     await WithFetchAsync([current]);
@@ -534,6 +579,13 @@ public sealed class RoomViewModel : Observable
 
         ReloadArts(composer, shipId);
         _ = CheckSpecialArtAsync(composer, shipId);
+
+        // the umbrella stand shows the secretary's umbrellas
+        foreach (var (slot, furnitureId) in _furniture.Where(kv => composer.DependsOnSecretary(kv.Value)).ToList())
+        {
+            Layer(slot.ToString()).Sprites = await LoadSpritesAsync(composer.Furniture(furnitureId, shipId));
+        }
+
         var sprite = composer.Secretary(shipId, _art, _leftOfCentre);
         var sprites = await LoadSpritesAsync(sprite is null ? [] : [sprite]);
         if (version == _secretaryVersion)
@@ -566,8 +618,9 @@ public sealed class RoomViewModel : Observable
         var arts = composer.SecretaryArts(shipId, _hasSpecialArt.Contains(shipId));
         if (arts.All(a => a.Key != _art))
         {
-            _art = RoomComposer.CurrentArt;
+            _art = arts[0].Key;
             Raise(nameof(Art));
+            Raise(nameof(SelectedArt));
         }
 
         if (!arts.SequenceEqual(Arts))
@@ -580,6 +633,7 @@ public sealed class RoomViewModel : Observable
 
             // refilling cleared the list's selection
             Raise(nameof(Art));
+            Raise(nameof(SelectedArt));
         }
     }
 
@@ -707,6 +761,7 @@ public sealed class RoomViewModel : Observable
         _art = preset.SecretaryArt ?? (preset.Damaged ? RoomComposer.DamagedArt : RoomComposer.CurrentArt);
         _leftOfCentre = preset.LeftOfCentre;
         Raise(nameof(Art));
+        Raise(nameof(SelectedArt));
         Raise(nameof(LeftOfCentre));
 
         foreach (var layer in Layers)

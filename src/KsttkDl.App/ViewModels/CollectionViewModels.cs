@@ -259,7 +259,10 @@ public sealed class FurnitureViewModel : CollectionViewModel
             .OrderBy(f => f.Type).ThenBy(f => f.No)
             .Select(f => new EntityTile(f.Id, f.Title, SlotName(f.Type), f.Type,
                 library.Find("furniture", f.Id, "normal") ?? library.Find("furniture", f.Id, "thumbnail"),
-                f.Description.Replace("<br>", "\n")));
+                f.Description.Replace("<br>", "\n")))
+
+            // a few entries have no pictures on the server at all; the game never shows them either
+            .Where(t => t.Picture is not null);
 
     protected override IEnumerable<(int, string)> GroupNames(GameLibrary library, IEnumerable<int> used) =>
         used.Order().Select(t => (t, SlotName(t)));
