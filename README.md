@@ -1,9 +1,11 @@
 # ksttk-dl
 
-Asset downloader and extractor for a certain browser game, as a desktop app for browsing and a
-command-line tool for bulk downloads. Fan-made, not affiliated with the game's
-developers or publishers. Use for research and personal archival in accordance with the game's
-ToS.
+Asset downloader and extractor for a certain browser game, as a desktop app
+for browsing and a command-line tool for bulk downloads. Fan-made, not
+affiliated with the game's developers or publishers. This repository contains
+no game assets; everything is downloaded from the game's CDN to your computer
+when you use the tools. Use for research and personal archival in accordance
+with the game's ToS.
 
 ## Desktop app
 
@@ -110,7 +112,7 @@ Every command accepts `--data <dir>` and `--output <dir>`.
 of a whole category:
 
 ```sh
-ksttk-dl get ship "Yamato Kai Ni" --world 1     # pictures and voice lines
+ksttk-dl get ship "<name>" --world 1            # pictures and voice lines
 ksttk-dl get ship 131 --world 1 --no-voices
 ksttk-dl get equipment 9 --world 1
 ksttk-dl get furniture 1 --world 1
